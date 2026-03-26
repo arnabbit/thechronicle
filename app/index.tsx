@@ -125,16 +125,8 @@ function Separator() {
 
 // --- Main Screen ---
 
-const FALLBACK_CATEGORIES: Category[] = [
-  { name: 'Home', slug: 'home' },
-  { name: 'Politics', slug: 'politics' },
-  { name: 'World', slug: 'world' },
-  { name: 'Sports', slug: 'sports' },
-  { name: 'Economy', slug: 'economy' },
-];
-
 export default function ChronicleScreen() {
-  const [categories, setCategories] = useState<Category[]>(FALLBACK_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState('home');
   const [articles, setArticles] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
