@@ -245,10 +245,8 @@ const styles = StyleSheet.create({
     backgroundColor: ChronicleColors.background,
     borderBottomWidth: 1,
     borderBottomColor: ChronicleColors.primary,
-    paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 16,
-    alignItems: 'center',
   },
   masthead: {
     fontFamily: 'Newsreader_700Bold_Italic',
@@ -256,14 +254,16 @@ const styles = StyleSheet.create({
     letterSpacing: -1.5,
     color: ChronicleColors.primary,
     textTransform: 'uppercase',
+    textAlign: 'center',
     marginBottom: 20,
+    paddingHorizontal: 24,
   },
 
   // Category nav
   categoryRow: {
     flexDirection: 'row',
     gap: 24,
-    paddingHorizontal: 4,
+    paddingHorizontal: 24,
   },
   categoryActive: {
     borderTopWidth: 2,
