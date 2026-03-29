@@ -32,6 +32,7 @@ interface PaginationInfo {
   total: number;
   has_next: boolean;
   next_page: number | null;
+  next_cursor: string | null;
 }
 
 // --- API ---
@@ -46,18 +47,21 @@ async function fetchCategories(): Promise<Category[]> {
 }
 
 async function fetchArticles(
-  page: number,
+  cursor: string | null,
   category: string | null,
   perPage = 10,
+  signal?: AbortSignal,
 ): Promise<{ articles: Article[]; pagination: PaginationInfo }> {
   const params = new URLSearchParams({
-    page: String(page),
     per_page: String(perPage),
   });
+  if (cursor) {
+    params.set('cursor', cursor);
+  }
   if (category && category !== 'home') {
     params.set('category', category);
   }
-  const res = await fetch(`${API_BASE}/api/articles?${params}`);
+  const res = await fetch(`${API_BASE}/api/articles?${params}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch articles');
   return res.json();
 }
@@ -129,11 +133,13 @@ export default function ChronicleScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState('home');
   const [articles, setArticles] = useState<Article[]>([]);
-  const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const loadingRef = useRef(false);
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Load categories on mount
   useEffect(() => {
@@ -147,42 +153,67 @@ export default function ChronicleScreen() {
       });
   }, []);
 
-  // Load articles when category changes
-  useEffect(() => {
-    setArticles([]);
-    setPage(1);
-    setHasMore(true);
-    setInitialLoading(true);
-    loadArticles(1, activeCategory, true);
-  }, [activeCategory]);
-
   const loadArticles = useCallback(
-    async (pg: number, category: string, reset = false) => {
-      if (loadingRef.current) return;
+    async (nextCursor: string | null, category: string, reset = false) => {
+      if (loadingRef.current && !reset) return;
+      if (reset && abortRef.current) {
+        abortRef.current.abort();
+      }
+      const requestSeq = ++requestSeqRef.current;
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       loadingRef.current = true;
       setLoading(true);
 
       try {
-        const data = await fetchArticles(pg, category);
-        setArticles((prev) => (reset ? data.articles : [...prev, ...data.articles]));
+        const data = await fetchArticles(nextCursor, category, 10, controller.signal);
+        if (requestSeq !== requestSeqRef.current) return;
+
+        setArticles((prev) => {
+          const merged = reset ? data.articles : [...prev, ...data.articles];
+          const byId = new Map<string, Article>();
+          for (const item of merged) byId.set(item.id, item);
+          return Array.from(byId.values());
+        });
         setHasMore(data.pagination.has_next);
-        setPage(data.pagination.next_page ?? pg);
-      } catch {
+        setCursor(data.pagination.next_cursor);
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         // silently fail, keep existing articles
       } finally {
+        if (requestSeq !== requestSeqRef.current) return;
         setLoading(false);
         setInitialLoading(false);
         loadingRef.current = false;
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
       }
     },
     [],
   );
 
+  // Load articles when category changes
+  useEffect(() => {
+    setArticles([]);
+    setCursor(null);
+    setHasMore(true);
+    setInitialLoading(true);
+    loadArticles(null, activeCategory, true);
+  }, [activeCategory, loadArticles]);
+
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
+
   const handleEndReached = useCallback(() => {
     if (!loading && hasMore) {
-      loadArticles(page, activeCategory);
+      loadArticles(cursor, activeCategory);
     }
-  }, [loading, hasMore, page, activeCategory, loadArticles]);
+  }, [loading, hasMore, cursor, activeCategory, loadArticles]);
 
   const handleCategorySelect = useCallback((slug: string) => {
     setActiveCategory(slug);
