@@ -19,6 +19,18 @@ interface Article {
   published_date: string;
   category: string;
   body: string[];
+  developments?: {
+    summary: string;
+    sourcePostUrls?: string[];
+  }[];
+  sourcePosts?: {
+    postUrl: string;
+    postNumber?: number | null;
+    sourceHeadline?: string;
+    mediaTypes?: string[];
+    captureMethods?: string[];
+    slideCount?: number;
+  }[];
 }
 
 interface Category {
@@ -118,6 +130,21 @@ function ArticleCard({ article }: { article: Article }) {
             {paragraph}
           </Text>
         ))}
+        {article.developments && article.developments.length > 0 ? (
+          <View style={styles.developmentsBlock}>
+            <Text style={styles.developmentsTitle}>Developments</Text>
+            {article.developments.map((development, i) => (
+              <Text key={i} style={styles.developmentItem}>
+                - {development.summary}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {article.sourcePosts && article.sourcePosts.length > 1 ? (
+          <Text style={styles.sourceCount}>
+            Combined from {article.sourcePosts.length} posts
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -364,6 +391,36 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: ChronicleColors.onSurface,
     marginBottom: 16,
+  },
+  developmentsBlock: {
+    marginTop: 4,
+    marginBottom: 16,
+    borderLeftWidth: 2,
+    borderLeftColor: ChronicleColors.primary,
+    paddingLeft: 12,
+  },
+  developmentsTitle: {
+    fontFamily: 'PublicSans_700Bold',
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: ChronicleColors.primary,
+    marginBottom: 8,
+  },
+  developmentItem: {
+    fontFamily: 'Newsreader_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    color: ChronicleColors.onSurface,
+    marginBottom: 8,
+  },
+  sourceCount: {
+    fontFamily: 'PublicSans_400Regular',
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: ChronicleColors.secondary,
+    marginTop: 2,
   },
 
   // Rule line
