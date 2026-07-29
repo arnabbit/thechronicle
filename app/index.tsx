@@ -22,10 +22,13 @@ interface Article {
   developments?: {
     summary: string;
     sourcePostUrls?: string[];
+    sourcePostNumbers?: number[];
   }[];
   sourcePosts?: {
     postUrl: string;
     postNumber?: number | null;
+    feedOrder?: number | null;
+    feedOrderMeaning?: string;
     sourceHeadline?: string;
     mediaTypes?: string[];
     captureMethods?: string[];
