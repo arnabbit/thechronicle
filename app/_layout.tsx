@@ -29,6 +29,7 @@ import { createQueryClient, persistOptions } from '@/src/api/queryClient';
 import { seedLatestFromCache } from '@/src/api/queries';
 import { bindNotifications, registerIfPermitted } from '@/src/store/notifications';
 import { usePrompts } from '@/src/store/prompts';
+import { useBackgroundUpdateCheck } from '@/src/store/updates';
 import { PAPER } from '@/src/lib/title';
 import { PeriodNavigator } from '@/src/ui/PeriodNavigator';
 import { ThemeProvider } from '@/src/theme/ThemeProvider';
@@ -105,6 +106,8 @@ export default function RootLayout() {
  */
 function Notifications({ client }: { client: QueryClient }) {
   const countLaunch = usePrompts((state) => state.countLaunch);
+  // On the startup path and never waited on: check now, apply next launch.
+  useBackgroundUpdateCheck();
 
   useEffect(() => {
     countLaunch();

@@ -13,6 +13,7 @@ import {
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { useNavigator } from '@/src/store/navigator';
+import { useUpdateNotice } from '@/src/store/updates';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
 import { ArticleCard } from '@/src/ui/ArticleCard';
@@ -39,6 +40,9 @@ export default function TodaysPaper() {
   // The dateline is the period control (ticket 17), and the navigator it
   // opens is mounted once at the root — so this is an action, not a component.
   const openNavigator = useNavigator((state) => state.openNavigator);
+  // The slot's second candidate. It never wins over the permission offer —
+  // `feedSlot` decides that, not this screen.
+  const updateNotice = useUpdateNotice();
 
   const edition = useEdition(LATEST);
   const feed = useEditionArticles(LATEST, category);
@@ -125,7 +129,9 @@ export default function TodaysPaper() {
             // No spinner: a page that is still arriving says nothing, and the
             // rows appear when they do. What sits at the end is a *slot* — the
             // paper's own closing marker, and above it at most one prompt.
-            feed.hasNextPage ? null : <FeedSlot label="End of daily edition" />
+            feed.hasNextPage ? null : (
+              <FeedSlot label="End of daily edition" updateNotice={updateNotice} />
+            )
           }
         />
       )}
