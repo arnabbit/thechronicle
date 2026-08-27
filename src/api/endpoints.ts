@@ -12,7 +12,7 @@
 // Periods and the push registry are additive and land with their own tickets.
 
 import { request } from '@/src/api/client';
-import type { Article, EditionRow, FeedItem, Page } from '@/src/api/types';
+import type { Article, EditionRow, FeedItem, Page, PeriodView } from '@/src/api/types';
 import type { LATEST_SENTINEL } from '@/src/lib/persist';
 
 export const FEED_PAGE_SIZE = 20;
@@ -99,4 +99,16 @@ export async function fetchSearch(q: string, cursor: string | null): Promise<Pag
 /** The full article. 404 for withdrawn, unknown and hidden alike. */
 export async function fetchArticle(id: string): Promise<Article> {
   return request<Article>(`/api/v2/articles/${encodeURIComponent(id)}`);
+}
+
+/**
+ * A week, month, quarter or year at a glance. Ticket 13's endpoint.
+ *
+ * Not deployed, and it additionally waits on the backend gaining an LLM key
+ * for the prose half. Out-of-range and malformed ids are 404 server-side, and
+ * `src/lib/period.ts` refuses them client-side first, so a mistyped id costs
+ * no request at all.
+ */
+export async function fetchPeriod(id: string): Promise<PeriodView> {
+  return request<PeriodView>(`/api/v2/periods/${encodeURIComponent(id)}`);
 }

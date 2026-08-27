@@ -22,10 +22,12 @@ import {
   fetchEdition,
   fetchEditionArticles,
   fetchEditions,
+  fetchPeriod,
   fetchSearch,
 } from '@/src/api/endpoints';
 import type { EditionRow, FeedItem, Page } from '@/src/api/types';
 import { STALE_IMMUTABLE, STALE_LATEST } from '@/src/api/queryClient';
+import { parsePeriodId } from '@/src/lib/period';
 import { isSearchable, normaliseQuery } from '@/src/lib/searchQuery';
 
 export const queryKeys = {
@@ -45,6 +47,9 @@ export const queryKeys = {
    * does not exist yet; when it lands, this key is already outside it.
    */
   search: (q: string) => ['search', q] as const,
+  /** `period` is one of the durable prefixes, so a period a reader has opened
+   *  survives a session the way an edition does. */
+  period: (id: string) => ['period', id] as const,
 };
 
 /** A closed edition can never gain or lose an article, so it is worth nothing
@@ -296,6 +301,29 @@ export function usePrefetchEditions() {
 
     return () => clearTimeout(timer);
   }, [client]);
+}
+
+/**
+ * One period, aggregated.
+ *
+ * A *closed* period can never change — its editions are immutable and its
+ * prose is stored for ever once written — so it is worth nothing to
+ * revalidate. An *open* one is still accumulating, and gets the same five
+ * minutes anything reached through `latest` gets. The screen knows which it is
+ * from `proseStatus`, but the cache has to decide before the response arrives,
+ * so the decision is made on the range instead: a period whose last day is in
+ * the future, or is today, is still open.
+ */
+export function usePeriod(id: string, today: string) {
+  const period = parsePeriodId(id);
+  return useQuery({
+    queryKey: queryKeys.period(id),
+    queryFn: () => fetchPeriod(id),
+    staleTime: period && period.range.to < today ? STALE_IMMUTABLE : STALE_LATEST,
+    // A malformed id is refused here rather than sent: the server would 404 it
+    // and the screen renders the same thing either way, one round trip later.
+    enabled: Boolean(period),
+  });
 }
 
 /**
