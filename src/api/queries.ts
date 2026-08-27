@@ -18,9 +18,11 @@ import {
   fetchEdition,
   fetchEditionArticles,
   fetchEditions,
+  fetchSearch,
 } from '@/src/api/endpoints';
 import type { EditionRow, FeedItem, Page } from '@/src/api/types';
 import { STALE_IMMUTABLE, STALE_LATEST } from '@/src/api/queryClient';
+import { isSearchable, normaliseQuery } from '@/src/lib/searchQuery';
 
 export const queryKeys = {
   editions: () => ['editions'] as const,
@@ -28,6 +30,17 @@ export const queryKeys = {
   editionArticles: (date: string, category: string) =>
     ['edition', date, 'articles', category] as const,
   article: (id: string) => ['article', id] as const,
+  /**
+   * `search` is deliberately *not* one of the durable prefixes.
+   *
+   * Ticket 06's `shouldDehydrateQuery` allowlists `edition`, `article` and
+   * `period`; a search result set is cross-edition and grows daily, so it must
+   * never reach the persisted cache. Keeping it under its own prefix — rather
+   * than, say, `['edition', 'search', q]` — is what makes that true by
+   * construction instead of by a rule someone has to remember. The persister
+   * does not exist yet; when it lands, this key is already outside it.
+   */
+  search: (q: string) => ['search', q] as const,
 };
 
 /** A closed edition can never gain or lose an article, so it is worth nothing
@@ -107,6 +120,31 @@ export function useEditionArticles(date: string, category: string) {
     query.data,
   );
   return query;
+}
+
+/**
+ * Search across the whole archive, one cursor page at a time.
+ *
+ * Five minutes, not `Infinity`: the immutable-past rule does not apply here.
+ * A search is cross-edition and the corpus grows every day the paper
+ * publishes, so a result set held forever would silently stop including new
+ * matches.
+ *
+ * Plain argument, never a route param — the query is normalised here so the
+ * cache key is the string the endpoint actually saw, and the request is gated
+ * on the endpoint's own bounds so an out-of-bounds query issues nothing at all
+ * rather than being rejected server-side.
+ */
+export function useSearch(q: string) {
+  const query = normaliseQuery(q);
+  return useInfiniteQuery({
+    queryKey: queryKeys.search(query),
+    queryFn: ({ pageParam }) => fetchSearch(query, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.hasNext ? last.nextCursor : undefined),
+    staleTime: STALE_LATEST,
+    enabled: isSearchable(query),
+  });
 }
 
 /** Ticket 01 made an article id's content fixed for life, which is what makes
