@@ -26,6 +26,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bindConnectivity } from '@/src/api/connectivity';
 import { createQueryClient, persistOptions } from '@/src/api/queryClient';
+import { seedLatestFromCache } from '@/src/api/queries';
 import { PAPER } from '@/src/lib/title';
 import { ThemeProvider } from '@/src/theme/ThemeProvider';
 import { useTheme } from '@/src/theme/useTheme';
@@ -59,7 +60,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        {/* `onSuccess` fires once the cache has been read back off the disk,
+            which is the only moment the sentinel can be seeded from what
+            survived — before the first screen asks for it. */}
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={() => seedLatestFromCache(queryClient)}
+        >
           <ThemeProvider>
             <RestoreGate fontsSettled={fontsLoaded || !!fontError}>
               <ThemedNavigator />
