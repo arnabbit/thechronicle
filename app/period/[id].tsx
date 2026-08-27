@@ -88,10 +88,21 @@ export default function PeriodScreen() {
       <Frame title={routeTitle(label)}>
         <ScreenState
           kind={state ?? 'loading'}
+          // `missing`'s default line is worded for an article — "This article
+          // is not available" — and this is not an article. The spec records
+          // that as an open copy question; until ticket 18 settles it, the
+          // period screen supplies its own line rather than telling a reader
+          // about an article they did not ask for. Same structure, same
+          // refusal to guess which of the two reasons it is.
+          {...(state === 'missing'
+            ? {
+                line: 'This period is not available. It may be outside the paper’s run, or the link may be wrong — we cannot tell which.',
+                actionLabel: 'All editions',
+              }
+            : {})}
           onAction={
             state === 'missing' ? () => router.replace('/archive') : () => view.refetch()
           }
-          actionLabel={state === 'missing' ? 'All editions' : undefined}
         />
       </Frame>
     );
