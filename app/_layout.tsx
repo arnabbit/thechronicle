@@ -10,12 +10,16 @@ import {
   PublicSans_500Medium,
   PublicSans_700Bold,
 } from '@expo-google-fonts/public-sans';
+import {
+  DefaultTheme as NavigationDefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+} from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { FontDisplay, useFonts } from 'expo-font';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -55,7 +59,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <ThemedNavigator />
             <ThemedStatusBar />
             <DocumentTitle />
           </ThemeProvider>
@@ -108,6 +112,41 @@ function DocumentTitle() {
   }, [navigation]);
 
   return null;
+}
+
+/**
+ * The stack, told which paper it is printing on.
+ *
+ * The navigator keeps a theme of its own, and expo-router hands its navigation
+ * container no `theme` prop, so it falls back to React Navigation's
+ * `DefaultTheme` — whose `background` is `rgb(242, 242, 242)` in both palettes.
+ * That grey is painted on the scene container beneath every screen. In light it
+ * is merely the wrong off-white and in dark it is a light ground under a dark
+ * app, visible wherever a screen does not cover it: during a stack transition,
+ * behind an overscroll, and for the frame before the first screen paints. It is
+ * the post-JS twin of the white flash the pre-JS shell now fixes, and it comes
+ * from the same cause — a surface painted by something that was never told
+ * which palette is active.
+ *
+ * Only `background` is overridden. The rest of React Navigation's theme dresses
+ * furniture this app does not render — headers are off, the masthead is the
+ * header — so restating it would be inventing values ticket 12 never approved.
+ */
+function ThemedNavigator() {
+  const { colors } = useTheme();
+  const theme = useMemo(
+    () => ({
+      ...NavigationDefaultTheme,
+      colors: { ...NavigationDefaultTheme.colors, background: colors.background },
+    }),
+    [colors.background],
+  );
+
+  return (
+    <NavigationThemeProvider value={theme}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </NavigationThemeProvider>
+  );
 }
 
 function ThemedStatusBar() {
