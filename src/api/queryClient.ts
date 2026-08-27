@@ -3,6 +3,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { QueryClient } from '@tanstack/react-query';
 import type { Persister } from '@tanstack/react-query-persist-client';
 import { isNotFound } from '@/src/api/client';
+import { createSqlitePersister } from '@/src/api/sqlitePersister';
 import { WIRE_CONTRACT_VERSION } from '@/src/api/types';
 import { canCacheOffline } from '@/src/capabilities';
 import { isPersistable } from '@/src/lib/persist';
@@ -58,19 +59,29 @@ export function createQueryClient(): QueryClient {
 const CACHE_KEY = 'chronicle.query-cache';
 
 /**
- * Web is online-only by ticket 11's capability seam, so it gets a persister
- * that stores nothing rather than no persister at all.
+ * Two stores, one seam.
  *
- * The difference matters: the provider stays mounted on both platforms, which
- * means the restore gate is one code path rather than a platform branch, and
- * the web build exercises it on every load instead of shipping a path only
- * Android ever runs.
+ * **Android gets SQLite.** AsyncStorage there is a 6 MB database this managed
+ * app cannot resize, and the persister writes the whole cache as one row —
+ * which Android's 2 MB `CursorWindow` refuses to read back. See
+ * `sqlitePersister.ts` for the measurements.
+ *
+ * **The web keeps AsyncStorage**, where it is `localStorage`: no
+ * `CursorWindow`, no SQLite cap, and therefore none of the ceiling this split
+ * exists to remove.
+ *
+ * The choice is made here and nowhere else. No screen, no hook and no route
+ * file can tell which store is active, and `src/capabilities.ts` goes on
+ * answering what the platform *can do* rather than which database it uses.
  */
-const NO_STORAGE: Persister = {
-  persistClient: async () => {},
-  restoreClient: async () => undefined,
-  removeClient: async () => {},
-};
+function createPersister(): Persister {
+  if (canCacheOffline) return createSqlitePersister();
+  return createAsyncStoragePersister({
+    storage: AsyncStorage,
+    key: CACHE_KEY,
+    throttleTime: 5000,
+  });
+}
 
 /**
  * `maxAge: Infinity`, deliberately. The persister's own default is 24 hours,
@@ -79,15 +90,7 @@ const NO_STORAGE: Persister = {
  * decided per query at the dehydrate step instead, where 90 days is the rule.
  */
 export const persistOptions = {
-  persister: canCacheOffline
-    ? createAsyncStoragePersister({
-        storage: AsyncStorage,
-        key: CACHE_KEY,
-        // Writing on every cache mutation would mean a full serialise per row
-        // that arrives. Five seconds is the persister's own recommended floor.
-        throttleTime: 5000,
-      })
-    : NO_STORAGE,
+  persister: createPersister(),
   maxAge: Infinity,
   buster: WIRE_CONTRACT_VERSION,
   dehydrateOptions: {
