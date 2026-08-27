@@ -1,15 +1,19 @@
-import { onlineManager } from '@tanstack/react-query';
+import { onlineManager, useQueryClient } from '@tanstack/react-query';
+import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useArticle } from '@/src/api/queries';
+import { prefetchArticleBody, useArticle } from '@/src/api/queries';
+import { canShareNatively } from '@/src/capabilities';
 import type { Article } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { formatLongDate } from '@/src/lib/date';
 import { screenState } from '@/src/lib/screenState';
+import { shareMessage } from '@/src/lib/share';
 import { sourceLabel } from '@/src/lib/source';
+import { useBookmarks } from '@/src/store/bookmarks';
 import { routeTitle } from '@/src/lib/title';
 import { BackLink } from '@/src/ui/BackLink';
 import { Masthead } from '@/src/ui/Masthead';
@@ -73,7 +77,7 @@ export default function ArticleDetail() {
         />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          <Body article={article.data} onPressSource={openSource} />
+          <Body article={article.data} onPressSource={openSource} id={id} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -83,9 +87,11 @@ export default function ArticleDetail() {
 function Body({
   article,
   onPressSource,
+  id,
 }: {
   article: Article;
   onPressSource: (url: string) => void;
+  id: string;
 }) {
   const { colors } = useTheme();
   const date = formatLongDate(article.edition);
@@ -99,6 +105,7 @@ function Body({
         {article.headline}
       </Text>
       {date ? <Text style={[type.meta, { color: colors.secondary }]}>{date}</Text> : null}
+      <Controls id={id} headline={article.headline} />
       <View style={[styles.rule, { borderTopColor: colors.ruleStrong }]} />
 
       {article.body.map((paragraph, index) => (
@@ -145,6 +152,100 @@ function Body({
   );
 }
 
+/**
+ * Keep it, or hand it to someone.
+ *
+ * No prototype covers these two controls, so they are built from the paper's
+ * own vocabulary rather than invented: ruled standing caps at the dateline's
+ * weight, on the dateline's line. Above the heavy rule, so they read as part
+ * of the masthead furniture rather than as an interruption between the
+ * headline and the first paragraph — and reachable without scrolling a long
+ * article to decide to keep it.
+ */
+function Controls({ id, headline }: { id: string; headline: string }) {
+  const { colors } = useTheme();
+  const client = useQueryClient();
+  const bookmarks = useBookmarks((state) => state.bookmarks);
+  const save = useBookmarks((state) => state.save);
+  const remove = useBookmarks((state) => state.remove);
+  const [copied, setCopied] = useState(false);
+
+  const saved = bookmarks.some((mark) => mark.id === id);
+
+  const toggleSave = useCallback(() => {
+    if (saved) {
+      remove(id);
+      return;
+    }
+    save(id, Date.now());
+    // Fire and forget. The offline cache prefetches only the current
+    // edition's bodies, so a bookmark made from a past edition or a search
+    // result would otherwise be a kept thing with nothing kept.
+    prefetchArticleBody(client, id);
+  }, [saved, remove, save, id, client]);
+
+  const share = useCallback(async () => {
+    const message = shareMessage(headline, id);
+    try {
+      // One call on both platforms: react-native-web's `Share` already
+      // delegates to `navigator.share` and rejects when it is absent, so the
+      // *call* needs no branch. Only the label below does.
+      await Share.share({ message });
+    } catch {
+      // Every failure lands here, refusal included — and a reader who
+      // dismissed the sheet has still not lost the link.
+      await Clipboard.setStringAsync(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2400);
+    }
+  }, [headline, id]);
+
+  return (
+    <View style={styles.controls}>
+      <Control
+        label={saved ? 'Saved' : 'Save'}
+        accessibilityLabel={saved ? 'Remove from saved' : 'Save this article'}
+        onPress={toggleSave}
+        colors={colors}
+      />
+      <Control
+        // The capability flag decides the *word*, never the call: on a browser
+        // with no share sheet, "Share" would name something that cannot
+        // happen.
+        label={copied ? 'Link copied' : canShareNatively ? 'Share' : 'Copy link'}
+        accessibilityLabel="Share this article"
+        onPress={share}
+        colors={colors}
+      />
+    </View>
+  );
+}
+
+function Control({
+  label,
+  accessibilityLabel,
+  onPress,
+  colors,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+  colors: { primary: string; ruleStrong: string };
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={styles.controlHit}
+    >
+      <Text style={[type.kicker, styles.control, { color: colors.primary, borderBottomColor: colors.ruleStrong }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function Section({ heading, children }: { heading: string; children: ReactNode }) {
   const { colors } = useTheme();
   return (
@@ -169,6 +270,19 @@ const styles = StyleSheet.create({
   headline: {
     marginTop: 10,
     marginBottom: 10,
+  },
+  controls: {
+    flexDirection: 'row',
+    gap: 24,
+    marginTop: 16,
+  },
+  controlHit: {
+    paddingVertical: 8,
+    paddingRight: 4,
+  },
+  control: {
+    borderBottomWidth: 1,
+    paddingBottom: 3,
   },
   rule: {
     borderTopWidth: 2,
