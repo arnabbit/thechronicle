@@ -17,11 +17,13 @@ import {
   fetchArticle,
   fetchEdition,
   fetchEditionArticles,
+  fetchEditions,
 } from '@/src/api/endpoints';
 import type { EditionRow, FeedItem, Page } from '@/src/api/types';
 import { STALE_IMMUTABLE, STALE_LATEST } from '@/src/api/queryClient';
 
 export const queryKeys = {
+  editions: () => ['editions'] as const,
   edition: (date: string) => ['edition', date] as const,
   editionArticles: (date: string, category: string) =>
     ['edition', date, 'articles', category] as const,
@@ -53,6 +55,25 @@ function useMirrorToDate<T>(key: readonly unknown[] | null, data: T | undefined)
     if (!serialised || data === undefined) return;
     client.setQueryData(JSON.parse(serialised), data);
   }, [client, serialised, data]);
+}
+
+/**
+ * The archive index, newest edition first, one cursor page at a time.
+ *
+ * `Infinity` rather than the 5 minutes `latest` gets: an edition that exists
+ * can never gain or lose an article, so every row already on screen is final
+ * and a reader who scrolls ten pages in and comes back must not pay for them
+ * twice. The index only grows at its head, and the front page's own
+ * `latest`-keyed queries are what notice that.
+ */
+export function useEditions() {
+  return useInfiniteQuery({
+    queryKey: queryKeys.editions(),
+    queryFn: ({ pageParam }) => fetchEditions(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.hasNext ? last.nextCursor : undefined),
+    staleTime: STALE_IMMUTABLE,
+  });
 }
 
 /** The edition row: the dateline's date, and that edition's category nav. */

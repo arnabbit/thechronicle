@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { formatDateline, formatLongDate } from '../src/lib/date.ts';
+import { formatDateline, formatLongDate, formatWeekday } from '../src/lib/date.ts';
 
 // `edition` is a YYYY-MM-DD calendar date in IST and is the only date on the
 // wire. Formatting it must be arithmetic on those digits — never a Date parsed
@@ -24,10 +24,17 @@ test('the long date names the weekday', () => {
   assert.equal(formatLongDate('2024-02-29'), 'Thursday, 29 February 2024');
 });
 
+test('the weekday alone is the archive row\'s kicker', () => {
+  assert.equal(formatWeekday('2026-08-27'), 'Thursday');
+  assert.equal(formatWeekday('2026-03-25'), 'Wednesday');
+  assert.equal(formatWeekday('2024-02-29'), 'Thursday');
+});
+
 test('a malformed or empty edition formats to nothing rather than "Invalid Date"', () => {
   for (const bad of ['', 'latest', '2026-8-27', '27-08-2026', '2026-08-27T00:00:00Z']) {
     assert.equal(formatDateline(bad), '', bad);
     assert.equal(formatLongDate(bad), '', bad);
+    assert.equal(formatWeekday(bad), '', bad);
   }
 });
 
@@ -61,6 +68,7 @@ test('every day of a leap year formats to its own digits and its true weekday', 
     const edition = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
     assert.equal(formatDateline(edition), `${d} ${MONTHS[m - 1]} ${y}`, edition);
+    assert.equal(formatWeekday(edition), NAMES[weekdayOf(y, m, d)], edition);
     assert.equal(
       formatLongDate(edition),
       `${NAMES[weekdayOf(y, m, d)]}, ${d} ${MONTHS[m - 1]} ${y}`,
