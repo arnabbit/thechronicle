@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LATEST } from '@/src/api/endpoints';
 import { useEdition, useEditionArticles } from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
-import { isNotFound } from '@/src/api/client';
 import { categoryLabel } from '@/src/lib/category';
+import { screenState } from '@/src/lib/screenState';
 import { ArticleCard } from '@/src/ui/ArticleCard';
 import { CategoryNav } from '@/src/ui/CategoryNav';
 import { Masthead } from '@/src/ui/Masthead';
@@ -45,7 +45,16 @@ export default function TodaysPaper() {
     if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage();
   }, [feed]);
 
-  const state = screenState(feed.status, feed.error, articles.length);
+  // Connectivity is read here rather than inside the selector, which keeps the
+  // selector pure. On native `isOnline()` is always true until ticket 06 binds
+  // onlineManager to NetInfo — React Native does not wire Query's online
+  // detection itself. On web the browser's own online events already drive it.
+  const state = screenState({
+    status: feed.status,
+    error: feed.error,
+    online: onlineManager.isOnline(),
+    count: articles.length,
+  });
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
@@ -96,24 +105,6 @@ export default function TodaysPaper() {
 }
 
 const keyOf = (item: FeedItem) => item.id;
-
-/** `null` means "there is content to render". Query's `status` no longer maps
- *  one-to-one onto the union: a failed fetch while offline is not an error. */
-function screenState(
-  status: 'pending' | 'error' | 'success',
-  error: unknown,
-  count: number,
-): ScreenStateKind | null {
-  if (status === 'pending') return 'loading';
-  if (status === 'error') {
-    if (isNotFound(error)) return 'missing';
-    // On native this is always `true` until ticket 09 binds onlineManager to
-    // NetInfo — React Native does not wire Query's online detection itself.
-    // On web the browser's own online events already drive it.
-    return onlineManager.isOnline() ? 'error' : 'offline';
-  }
-  return count === 0 ? 'empty' : null;
-}
 
 function emptyCopy(state: ScreenStateKind, category: string) {
   if (state !== 'empty') return {};

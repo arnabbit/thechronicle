@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { ApiError, NotFoundError } from '@/src/api/errors';
 
 // One origin serves web and Android, so there is no platform branch here.
 const FALLBACK_BASE = 'https://fayz-news-backend.onrender.com';
@@ -8,31 +9,10 @@ export const API_BASE =
   (Constants.expoConfig?.extra?.apiBase as string | undefined) ??
   FALLBACK_BASE;
 
-/** Ticket 04 made a missing edition, an unknown id and a hidden article all
- *  404. The client cannot tell them apart, so neither may the UI — and none of
- *  the three improves on a retry, which is why this type exists at all. */
-export class NotFoundError extends Error {
-  readonly status = 404;
-  constructor(message = 'Not found') {
-    super(message);
-    this.name = 'NotFoundError';
-  }
-}
-
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-export function isNotFound(error: unknown): boolean {
-  return error instanceof NotFoundError;
-}
+// The error types live in `errors.ts`, which imports nothing — that is what
+// lets screen-state selection be tested without a renderer. Re-exported here
+// so callers keep one import for the client and its failures.
+export { ApiError, NotFoundError, isNotFound } from '@/src/api/errors';
 
 /**
  * The one place a request leaves the app — except ticket 16's GitHub release
