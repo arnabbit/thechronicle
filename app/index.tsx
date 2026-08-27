@@ -12,6 +12,7 @@ import {
 } from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
+import { useNavigator } from '@/src/store/navigator';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
 import { ArticleCard } from '@/src/ui/ArticleCard';
@@ -34,6 +35,10 @@ export default function TodaysPaper() {
   // The active category lives in the URL, not component state, so a filtered
   // view is shareable and web back works.
   const category = params.category ?? 'home';
+
+  // The dateline is the period control (ticket 17), and the navigator it
+  // opens is mounted once at the root — so this is an action, not a component.
+  const openNavigator = useNavigator((state) => state.openNavigator);
 
   const edition = useEdition(LATEST);
   const feed = useEditionArticles(LATEST, category);
@@ -84,7 +89,7 @@ export default function TodaysPaper() {
           a reader looking at Monday's paper on Wednesday is already told. */}
       <Masthead
         edition={edition.data?.date ?? articles[0]?.edition}
-        onPressDateline={() => router.push('/archive')}
+        onPressDateline={() => openNavigator()}
       />
       <CategoryNav
         // The nav is scoped to *this* edition, which is what makes a past

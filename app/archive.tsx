@@ -7,7 +7,9 @@ import { useEditions } from '@/src/api/queries';
 import type { EditionRow } from '@/src/api/types';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
+import { useNavigator } from '@/src/store/navigator';
 import { EditionCard } from '@/src/ui/EditionCard';
+import { PeriodSwitcher } from '@/src/ui/PeriodSwitcher';
 import { Masthead } from '@/src/ui/Masthead';
 import { ScreenState, type ScreenStateKind } from '@/src/ui/ScreenState';
 import { useTheme } from '@/src/theme/useTheme';
@@ -20,13 +22,17 @@ import { type } from '@/src/theme/type';
 // would advertise capacity the paper does not have and render mostly dead
 // cells.
 //
-// The period switcher belongs at the top of this screen and is ticket 08's; the
-// slot is left unbuilt rather than stubbed with a control that goes nowhere.
+// The period switcher sits at the top of this screen as well as inside the
+// navigator, so periods are reachable from both surfaces. Here it *opens* the
+// navigator at the chosen scale rather than regrouping this list in place: one
+// bucket list, in one overlay, instead of the archive growing a second mode
+// that has to be kept in step with it.
 
 const TITLE = routeTitle('Archive');
 
 export default function Archive() {
   const { colors } = useTheme();
+  const openNavigator = useNavigator((state) => state.openNavigator);
 
   const editions = useEditions();
 
@@ -64,6 +70,9 @@ export default function Archive() {
       <Masthead />
       <View style={styles.sectionHead}>
         <Text style={[type.slug, { color: colors.primary }]}>All editions</Text>
+      </View>
+      <View style={styles.switcher}>
+        <PeriodSwitcher onSelect={(kind) => openNavigator(kind)} />
       </View>
 
       {state ? (
@@ -128,6 +137,11 @@ const styles = StyleSheet.create({
   sectionHead: {
     paddingHorizontal: 24,
     paddingTop: 18,
+    paddingBottom: 4,
+  },
+  switcher: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
     paddingBottom: 4,
   },
   list: {

@@ -28,6 +28,7 @@ import { bindConnectivity } from '@/src/api/connectivity';
 import { createQueryClient, persistOptions } from '@/src/api/queryClient';
 import { seedLatestFromCache } from '@/src/api/queries';
 import { PAPER } from '@/src/lib/title';
+import { PeriodNavigator } from '@/src/ui/PeriodNavigator';
 import { ThemeProvider } from '@/src/theme/ThemeProvider';
 import { useTheme } from '@/src/theme/useTheme';
 
@@ -72,6 +73,12 @@ export default function RootLayout() {
             <RestoreGate fontsSettled={fontsLoaded || !!fontError}>
               <ThemedNavigator />
             </RestoreGate>
+            {/* Mounted once, opened through a store action. Three surfaces
+                can open it — two datelines and the archive's switcher — and
+                one overlay is what stops them drifting into three. It renders
+                nothing until it is open, so the archive index behind it is not
+                fetched by readers who never ask for it. */}
+            <PeriodNavigator />
             <ThemedStatusBar />
             <DocumentTitle />
           </ThemeProvider>

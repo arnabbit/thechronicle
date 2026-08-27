@@ -8,6 +8,7 @@ import { useEdition, useEditionArticles } from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { formatDateline, isEditionDate } from '@/src/lib/date';
+import { useNavigator } from '@/src/store/navigator';
 import { screenState, type ScreenStateKind } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
 import { ArticleCard } from '@/src/ui/ArticleCard';
@@ -37,6 +38,10 @@ export default function PastEdition() {
 
 function Edition({ date, category }: { date: string; category: string }) {
   const { colors } = useTheme();
+
+  // The dateline is the period control (ticket 17), and the navigator it
+  // opens is mounted once at the root — so this is an action, not a component.
+  const openNavigator = useNavigator((state) => state.openNavigator);
 
   const edition = useEdition(date);
   const feed = useEditionArticles(date, category);
@@ -84,7 +89,7 @@ function Edition({ date, category }: { date: string; category: string }) {
       {/* The dateline is this edition's date, never "today", which is the whole
           point of reading Monday's paper on Wednesday. It comes from the URL,
           so it is right before the edition row lands. */}
-      <Masthead edition={edition.data?.date ?? date} onPressDateline={() => router.push('/archive')} />
+      <Masthead edition={edition.data?.date ?? date} onPressDateline={() => openNavigator()} />
       <CategoryNav
         // This edition's own categories, server-injected with `home` first — a
         // day that filed nothing under Sport does not offer Sport.
