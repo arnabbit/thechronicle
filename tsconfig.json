@@ -2,6 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Modules in the pure test suite import each other by exact filename so
+    // bare Node can resolve them without a bundler. Harmless here: this
+    // project never emits from tsc.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./*"

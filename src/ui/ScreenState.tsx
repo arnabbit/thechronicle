@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ScreenStateKind } from '@/src/lib/screenState';
 import { useTheme } from '@/src/theme/useTheme';
 import { type } from '@/src/theme/type';
 
@@ -8,7 +9,9 @@ import { type } from '@/src/theme/type';
 // control. There is no spinner anywhere in the app; the centred grey
 // ActivityIndicator this replaced is the generic-app answer ticket 18 rejected.
 
-export type ScreenStateKind = 'loading' | 'offline' | 'error' | 'empty' | 'missing';
+// The union is declared beside the selection logic, which is pure and under
+// test; this file renders it. Re-exported so a screen needs one import.
+export type { ScreenStateKind };
 
 interface Copy {
   slug: string;
