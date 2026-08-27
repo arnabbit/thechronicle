@@ -62,6 +62,7 @@ function Edition({ date, category }: { date: string; category: string }) {
     status: feed.status,
     error: feed.error,
     online: onlineManager.isOnline(),
+    paused: feed.fetchStatus === 'paused',
     count: articles.length,
   });
 

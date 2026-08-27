@@ -6,6 +6,7 @@
 // push handler prefetch an edition with no router context.
 
 import {
+  onlineManager,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -13,6 +14,7 @@ import {
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import {
+  FEED_PAGE_SIZE,
   LATEST,
   fetchArticle,
   fetchEdition,
@@ -156,4 +158,78 @@ export function useArticle(id: string) {
     queryFn: () => fetchArticle(id),
     staleTime: STALE_IMMUTABLE,
   });
+}
+
+/** Long enough to be after first paint and the reader's first scroll, short
+ *  enough that a tunnel a minute away is still covered. */
+const PREFETCH_DELAY_MS = 1200;
+
+/**
+ * The current edition's bodies, warmed after first paint.
+ *
+ * The dehydration predicate persists `['article', id]`, but only entries that
+ * exist — and nothing puts an article in the cache until the reader opens it.
+ * Without this, a reader who scrolled today's front page and then lost signal
+ * would have the feed offline and not one article behind it. Roughly 29 KB for
+ * a full edition, and every request it makes is one the reader was likely to
+ * make anyway.
+ *
+ * One page's worth, sequentially, and it stops the moment the connection goes
+ * — twenty parallel requests at a cold dyno would be a worse citizen than the
+ * reader scrolling.
+ */
+export function usePrefetchBodies(items: readonly FeedItem[]) {
+  const client = useQueryClient();
+  // The effect depends on *which* articles, not on the array identity a
+  // re-render hands back.
+  const ids = items.slice(0, FEED_PAGE_SIZE).map((item) => item.id).join(',');
+
+  useEffect(() => {
+    if (!ids) return;
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      for (const id of ids.split(',')) {
+        if (cancelled || !onlineManager.isOnline()) return;
+        // A no-op for anything already cached: these never go stale.
+        await client.prefetchQuery({
+          queryKey: queryKeys.article(id),
+          queryFn: () => fetchArticle(id),
+          staleTime: STALE_IMMUTABLE,
+        });
+      }
+    }, PREFETCH_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [client, ids]);
+}
+
+/**
+ * The archive index, warmed after first paint.
+ *
+ * Fired from the screen the reader is on *before* the archive, not from the
+ * archive itself: the archive mounts the same query on arrival, so prefetching
+ * it there would be a request the screen was making anyway. Here it is the
+ * difference between the dateline opening a list and the dateline opening a
+ * skeleton.
+ */
+export function usePrefetchEditions() {
+  const client = useQueryClient();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!onlineManager.isOnline()) return;
+      client.prefetchInfiniteQuery({
+        queryKey: queryKeys.editions(),
+        queryFn: ({ pageParam }) => fetchEditions(pageParam as string | null),
+        initialPageParam: null as string | null,
+        staleTime: STALE_IMMUTABLE,
+      });
+    }, PREFETCH_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [client]);
 }

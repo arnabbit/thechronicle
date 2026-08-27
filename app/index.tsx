@@ -4,7 +4,12 @@ import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LATEST } from '@/src/api/endpoints';
-import { useEdition, useEditionArticles } from '@/src/api/queries';
+import {
+  useEdition,
+  useEditionArticles,
+  usePrefetchBodies,
+  usePrefetchEditions,
+} from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { screenState } from '@/src/lib/screenState';
@@ -38,6 +43,12 @@ export default function TodaysPaper() {
     [feed.data],
   );
 
+  // After first paint: the bodies behind the rows the reader can see, so the
+  // durable cache holds articles and not just headlines, and the archive index
+  // the dateline leads to.
+  usePrefetchBodies(articles);
+  usePrefetchEditions();
+
   const selectCategory = useCallback((slug: string) => {
     router.setParams({ category: slug === 'home' ? undefined : slug });
   }, []);
@@ -47,13 +58,19 @@ export default function TodaysPaper() {
   }, [feed]);
 
   // Connectivity is read here rather than inside the selector, which keeps the
-  // selector pure. On native `isOnline()` is always true until ticket 06 binds
-  // onlineManager to NetInfo — React Native does not wire Query's online
-  // detection itself. On web the browser's own online events already drive it.
+  // selector pure. The root layout binds the online manager to NetInfo at boot,
+  // so this is a real answer on Android as well as on web.
+  //
+  // `fetchStatus` goes with it: Query *pauses* a fetch when it believes it is
+  // offline rather than failing it, so an offline reader's query sits at
+  // `pending` forever and the selector would call it loading. Paused with
+  // nothing to show is the offline notice; paused with a cached edition
+  // underneath it is still the edition.
   const state = screenState({
     status: feed.status,
     error: feed.error,
     online: onlineManager.isOnline(),
+    paused: feed.fetchStatus === 'paused',
     count: articles.length,
   });
 

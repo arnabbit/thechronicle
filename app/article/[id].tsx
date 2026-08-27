@@ -37,6 +37,10 @@ export default function ArticleDetail() {
     status: article.status,
     error: article.error,
     online: onlineManager.isOnline(),
+    // Paused, not failed: Query holds an offline fetch open instead of
+    // erroring it. An article already in the durable cache reads as `success`
+    // and never gets here, which is what makes the tunnel work.
+    paused: article.fetchStatus === 'paused',
     // A record read has no empty state: success means the article is here.
     count: article.data ? 1 : 0,
   });

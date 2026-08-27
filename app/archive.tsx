@@ -39,12 +39,15 @@ export default function Archive() {
     if (editions.hasNextPage && !editions.isFetchingNextPage) editions.fetchNextPage();
   }, [editions]);
 
-  // Connectivity is read here, not inside the selector, exactly as the front
-  // page does it — a failed fetch with no connection is offline, not an error.
+  // Connectivity and paused-ness are read here, not inside the selector,
+  // exactly as the front page does it — a failed fetch with no connection is
+  // offline, not an error, and a fetch Query has paused for want of a
+  // connection is offline rather than still loading.
   const state = screenState({
     status: editions.status,
     error: editions.error,
     online: onlineManager.isOnline(),
+    paused: editions.fetchStatus === 'paused',
     count: rows.length,
   });
 
