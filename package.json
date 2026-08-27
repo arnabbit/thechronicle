@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build:web-shell": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-web-shell.mjs",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/screen-state.test.ts test/date.test.ts test/category.test.ts test/source.test.ts test/title.test.ts test/web-shell.test.ts test/purity.test.ts"
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/screen-state.test.ts test/date.test.ts test/category.test.ts test/source.test.ts test/title.test.ts test/search-query.test.ts test/web-shell.test.ts test/purity.test.ts"
   },
   "dependencies": {
     "@expo-google-fonts/newsreader": "^0.4.1",
