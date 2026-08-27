@@ -1,0 +1,13 @@
+# Single-output web build: there is one dist/index.html and every path must
+# reach it, or a pasted link into an article or the archive is a host 404 —
+# which is what made shared links dead on arrival.
+#
+# Committed here rather than set in the Netlify dashboard: `public/` is copied
+# verbatim into `dist/`, which is the publish directory, so the rule ships with
+# the build that needs it. Rebuild after editing this file — the export is what
+# copies it.
+#
+# 200, not 301: the URL is preserved so the router can read it. No `!` — there
+# is nothing to shadow in a single-output build, and forcing would only hide
+# real asset 404s. Unmatched paths reach expo-router's own +not-found route.
+/*    /index.html    200

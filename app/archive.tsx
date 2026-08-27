@@ -1,12 +1,12 @@
 import { onlineManager } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import Head from 'expo-router/head';
 import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEditions } from '@/src/api/queries';
 import type { EditionRow } from '@/src/api/types';
 import { screenState } from '@/src/lib/screenState';
+import { routeTitle } from '@/src/lib/title';
 import { EditionCard } from '@/src/ui/EditionCard';
 import { Masthead } from '@/src/ui/Masthead';
 import { ScreenState, type ScreenStateKind } from '@/src/ui/ScreenState';
@@ -23,7 +23,7 @@ import { type } from '@/src/theme/type';
 // The period switcher belongs at the top of this screen and is ticket 08's; the
 // slot is left unbuilt rather than stubbed with a control that goes nowhere.
 
-const TITLE = 'Archive · The Chronicle';
+const TITLE = routeTitle('Archive');
 
 export default function Archive() {
   const { colors } = useTheme();
@@ -52,14 +52,9 @@ export default function Archive() {
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
       {/* The route names itself, so a browser tab and a history entry are
           distinguishable — set here on the stack screen, never by the masthead.
-          `Head` as well as the option because expo-router turns React
-          Navigation's own document-title handling off on web
-          (`documentTitle.enabled: false`), so the stack option alone leaves the
-          tab blank; `Head` renders only while this route is focused. */}
+          The stack option is now the whole mechanism: the root layout carries it
+          to the tab, so the `Head` element that used to sit beside it is gone. */}
       <Stack.Screen options={{ title: TITLE }} />
-      <Head>
-        <title>{TITLE}</title>
-      </Head>
 
       {/* No dateline here: the archive is not an edition, and the masthead
           renders one only when it is given a date. */}

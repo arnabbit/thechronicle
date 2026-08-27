@@ -84,6 +84,8 @@ test('nothing the suite imports reaches React Native, directly or transitively',
     'src/lib/category.ts',
     'src/lib/source.ts',
     'src/lib/title.ts',
+    'src/lib/webShell.ts',
+    'src/theme/tokens.ts',
     'src/api/errors.ts',
   ]) {
     assert.ok(visited.includes(expected), `expected the scan to reach ${expected}, walked ${visited.join(', ')}`);
