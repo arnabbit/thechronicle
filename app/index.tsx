@@ -60,7 +60,10 @@ export default function TodaysPaper() {
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
       {/* The dateline shows the edition's own date, never the word "today", so
           a reader looking at Monday's paper on Wednesday is already told. */}
-      <Masthead edition={edition.data?.date ?? articles[0]?.edition} />
+      <Masthead
+        edition={edition.data?.date ?? articles[0]?.edition}
+        onPressDateline={() => router.push('/archive')}
+      />
       <CategoryNav
         // The nav is scoped to *this* edition, which is what makes a past
         // edition's categories right rather than today's.

@@ -25,12 +25,19 @@ export function formatDateline(edition: string): string {
   return `${p.d} ${MONTHS[p.m - 1]} ${p.y}`;
 }
 
-/** "Thursday, 27 August 2026". */
-export function formatLongDate(edition: string): string {
+/** "Thursday" — the archive row's kicker, where the date sits in the headline
+ *  slot and the weekday is what tells a Saturday paper from a Tuesday one. */
+export function formatWeekday(edition: string): string {
   const p = parts(edition);
   if (!p) return '';
   // Date.UTC + getUTCDay is arithmetic on the calendar date itself, not a
   // timezone conversion, so the weekday cannot drift with the host clock.
-  const weekday = WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
-  return `${weekday}, ${p.d} ${MONTHS[p.m - 1]} ${p.y}`;
+  return WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
+}
+
+/** "Thursday, 27 August 2026". */
+export function formatLongDate(edition: string): string {
+  const p = parts(edition);
+  if (!p) return '';
+  return `${formatWeekday(edition)}, ${p.d} ${MONTHS[p.m - 1]} ${p.y}`;
 }
