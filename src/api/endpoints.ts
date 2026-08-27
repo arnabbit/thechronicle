@@ -13,13 +13,22 @@
 
 import { request } from '@/src/api/client';
 import type { Article, EditionRow, FeedItem, Page } from '@/src/api/types';
+import type { LATEST_SENTINEL } from '@/src/lib/persist';
 
 export const FEED_PAGE_SIZE = 20;
 export const EDITIONS_PAGE_SIZE = 30;
 export const SEARCH_PAGE_SIZE = 20;
 
-/** The sentinel that means "today's paper" without a round trip to resolve it. */
-export const LATEST = 'latest';
+/**
+ * The sentinel that means "today's paper" without a round trip to resolve it.
+ *
+ * The dehydration predicate has to recognise this string to keep the persisted
+ * cache from storing two copies of one edition, and it runs under bare Node —
+ * so it cannot import this module, which reaches the client and therefore
+ * React Native. It declares its own copy; the annotation here is what stops
+ * the two drifting apart, because the assignment stops compiling if they do.
+ */
+export const LATEST: typeof LATEST_SENTINEL = 'latest';
 
 interface Envelope<T> {
   has_next: boolean;

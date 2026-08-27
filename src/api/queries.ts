@@ -6,13 +6,16 @@
 // push handler prefetch an edition with no router context.
 
 import {
+  onlineManager,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import {
+  FEED_PAGE_SIZE,
   LATEST,
   fetchArticle,
   fetchEdition,
@@ -68,6 +71,68 @@ function useMirrorToDate<T>(key: readonly unknown[] | null, data: T | undefined)
     if (!serialised || data === undefined) return;
     client.setQueryData(JSON.parse(serialised), data);
   }, [client, serialised, data]);
+}
+
+/**
+ * The inverse of the mirroring above, run once when the persisted cache has
+ * been restored.
+ *
+ * The mirroring runs date-wards only, and the dehydration predicate skips
+ * `latest`-keyed entries, so what survives a session is the edition addressed
+ * by its real date and nothing addressed by the sentinel. That is correct —
+ * two copies of one edition is exactly what the rule exists to prevent — but it
+ * leaves the front page, which asks for `latest`, as the one screen that cannot
+ * open in a tunnel. A reader with yesterday's whole paper on disk was being
+ * shown "No connection" on the app's own front door. Measured on the device:
+ * `/edition/2026-08-27` rendered in full from cache while `/` did not.
+ *
+ * So the newest dated edition is copied back onto the sentinel at boot. It is
+ * never written back to disk — the predicate still refuses the key — so this
+ * costs nothing in the persisted blob and cannot reintroduce the duplicate.
+ *
+ * The timestamp is carried over rather than stamped as now, which is what keeps
+ * the seeded copy *stale*: an online reader's front page refetches on mount and
+ * replaces it, and an offline reader's paused fetch leaves it standing. The
+ * dateline names the edition's own date and never the word "today", so a reader
+ * looking at Tuesday's paper on Thursday is already told which paper it is.
+ */
+export function seedLatestFromCache(client: QueryClient): void {
+  const entries = client.getQueryCache().getAll();
+
+  let newest: { date: string; data: unknown; updatedAt: number } | null = null;
+  for (const entry of entries) {
+    const [prefix, date, more] = entry.queryKey as unknown[];
+    // The edition row itself: a two-element key, and never the sentinel's.
+    if (prefix !== 'edition' || typeof date !== 'string') continue;
+    if (date === LATEST || more !== undefined) continue;
+    if (entry.state.status !== 'success' || entry.state.data === undefined) continue;
+    if (!newest || date > newest.date) {
+      newest = { date, data: entry.state.data, updatedAt: entry.state.dataUpdatedAt };
+    }
+  }
+  if (!newest) return;
+
+  const seed = (key: readonly unknown[], data: unknown, updatedAt: number) => {
+    // Never over a live answer: restoring must not overwrite anything a query
+    // that is already running has come back with.
+    if (client.getQueryData(key) !== undefined) return;
+    client.setQueryData(key, data, { updatedAt });
+  };
+
+  seed(queryKeys.edition(LATEST), newest.data, newest.updatedAt);
+
+  // Its feed, per category the reader actually visited.
+  for (const entry of entries) {
+    const [prefix, date, articles, category] = entry.queryKey as unknown[];
+    if (prefix !== 'edition' || date !== newest.date) continue;
+    if (articles !== 'articles' || typeof category !== 'string') continue;
+    if (entry.state.status !== 'success' || entry.state.data === undefined) continue;
+    seed(
+      queryKeys.editionArticles(LATEST, category),
+      entry.state.data,
+      entry.state.dataUpdatedAt,
+    );
+  }
 }
 
 /**
@@ -156,4 +221,78 @@ export function useArticle(id: string) {
     queryFn: () => fetchArticle(id),
     staleTime: STALE_IMMUTABLE,
   });
+}
+
+/** Long enough to be after first paint and the reader's first scroll, short
+ *  enough that a tunnel a minute away is still covered. */
+const PREFETCH_DELAY_MS = 1200;
+
+/**
+ * The current edition's bodies, warmed after first paint.
+ *
+ * The dehydration predicate persists `['article', id]`, but only entries that
+ * exist — and nothing puts an article in the cache until the reader opens it.
+ * Without this, a reader who scrolled today's front page and then lost signal
+ * would have the feed offline and not one article behind it. Roughly 29 KB for
+ * a full edition, and every request it makes is one the reader was likely to
+ * make anyway.
+ *
+ * One page's worth, sequentially, and it stops the moment the connection goes
+ * — twenty parallel requests at a cold dyno would be a worse citizen than the
+ * reader scrolling.
+ */
+export function usePrefetchBodies(items: readonly FeedItem[]) {
+  const client = useQueryClient();
+  // The effect depends on *which* articles, not on the array identity a
+  // re-render hands back.
+  const ids = items.slice(0, FEED_PAGE_SIZE).map((item) => item.id).join(',');
+
+  useEffect(() => {
+    if (!ids) return;
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      for (const id of ids.split(',')) {
+        if (cancelled || !onlineManager.isOnline()) return;
+        // A no-op for anything already cached: these never go stale.
+        await client.prefetchQuery({
+          queryKey: queryKeys.article(id),
+          queryFn: () => fetchArticle(id),
+          staleTime: STALE_IMMUTABLE,
+        });
+      }
+    }, PREFETCH_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [client, ids]);
+}
+
+/**
+ * The archive index, warmed after first paint.
+ *
+ * Fired from the screen the reader is on *before* the archive, not from the
+ * archive itself: the archive mounts the same query on arrival, so prefetching
+ * it there would be a request the screen was making anyway. Here it is the
+ * difference between the dateline opening a list and the dateline opening a
+ * skeleton.
+ */
+export function usePrefetchEditions() {
+  const client = useQueryClient();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!onlineManager.isOnline()) return;
+      client.prefetchInfiniteQuery({
+        queryKey: queryKeys.editions(),
+        queryFn: ({ pageParam }) => fetchEditions(pageParam as string | null),
+        initialPageParam: null as string | null,
+        staleTime: STALE_IMMUTABLE,
+      });
+    }, PREFETCH_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [client]);
 }

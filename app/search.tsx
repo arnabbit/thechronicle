@@ -88,6 +88,7 @@ export default function Search() {
           status: results.status,
           error: results.error,
           online: onlineManager.isOnline(),
+          paused: results.fetchStatus === 'paused',
           count: articles.length,
         })
       : null;

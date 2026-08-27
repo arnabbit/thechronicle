@@ -1,5 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
+import type { Persister } from '@tanstack/react-query-persist-client';
 import { isNotFound } from '@/src/api/client';
+import { WIRE_CONTRACT_VERSION } from '@/src/api/types';
+import { canCacheOffline } from '@/src/capabilities';
+import { isPersistable } from '@/src/lib/persist';
 
 /** 5 minutes — mirrors ticket 04's `max-age=300` on anything resolved through
  *  `latest`, which is the only shape that can change under a reader. */
@@ -20,14 +26,84 @@ export function createQueryClient(): QueryClient {
         staleTime: STALE_LATEST,
         // Not an eviction mechanism — its timers restart on every cache
         // restore and sessions are minutes long. This is here for in-session
-        // navigation snappiness only; ticket 09 evicts at the dehydrate step.
+        // navigation snappiness only; eviction happens at the dehydrate step.
         gcTime: GC_TIME,
         // A 404 means missing, unknown or hidden, and none of the three
         // improves on a retry.
         retry: (failureCount, error) => !isNotFound(error) && failureCount < 2,
         // No fetch timeout anywhere: a cold Render dyno was measured at 22.9 s,
         // and any timeout short enough to feel responsive would kill it.
+        //
+        // `refetchOnReconnect` keeps its default of `true`, which is what makes
+        // "reconnecting refetches `latest`-keyed queries only" true without a
+        // rule of its own: Query refetches a reconnected query when it is
+        // *stale*, and every immutable read above already sits at `Infinity`.
+        // Past editions, past articles and the archive index are therefore
+        // never stale, never refetched, and the only queries that come back
+        // over the wire are the front page's — plus whatever was paused
+        // mid-flight when the connection went, which resumes rather than
+        // refetches.
       },
     },
   });
 }
+
+/**
+ * Where the persisted cache lives, and what busts it.
+ *
+ * The buster is the wire-contract version string, so a contract change
+ * discards the stored blob rather than restoring it and mis-parsing it against
+ * a shape that no longer exists.
+ */
+const CACHE_KEY = 'chronicle.query-cache';
+
+/**
+ * Web is online-only by ticket 11's capability seam, so it gets a persister
+ * that stores nothing rather than no persister at all.
+ *
+ * The difference matters: the provider stays mounted on both platforms, which
+ * means the restore gate is one code path rather than a platform branch, and
+ * the web build exercises it on every load instead of shipping a path only
+ * Android ever runs.
+ */
+const NO_STORAGE: Persister = {
+  persistClient: async () => {},
+  restoreClient: async () => undefined,
+  removeClient: async () => {},
+};
+
+/**
+ * `maxAge: Infinity`, deliberately. The persister's own default is 24 hours,
+ * which would throw the whole cache away between sessions and leave the tunnel
+ * reader with nothing — the exact failure this cache exists to prevent. Age is
+ * decided per query at the dehydrate step instead, where 90 days is the rule.
+ */
+export const persistOptions = {
+  persister: canCacheOffline
+    ? createAsyncStoragePersister({
+        storage: AsyncStorage,
+        key: CACHE_KEY,
+        // Writing on every cache mutation would mean a full serialise per row
+        // that arrives. Five seconds is the persister's own recommended floor.
+        throttleTime: 5000,
+      })
+    : NO_STORAGE,
+  maxAge: Infinity,
+  buster: WIRE_CONTRACT_VERSION,
+  dehydrateOptions: {
+    // The one place eviction happens. The predicate is pure and under test;
+    // this is the adapter that reads a live query into its three inputs.
+    shouldDehydrateQuery: (query: {
+      queryKey: readonly unknown[];
+      state: { dataUpdatedAt: number; status: 'pending' | 'error' | 'success' };
+    }) =>
+      isPersistable(
+        {
+          queryKey: query.queryKey,
+          dataUpdatedAt: query.state.dataUpdatedAt,
+          status: query.state.status,
+        },
+        Date.now(),
+      ),
+  },
+};

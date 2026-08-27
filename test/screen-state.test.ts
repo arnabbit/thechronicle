@@ -7,7 +7,13 @@ import { screenState } from '../src/lib/screenState.ts';
 // branch that separates a dead connection from a dead server is the one worth
 // pinning down: it reads connectivity, not just query status.
 
-const online = { status: 'success' as const, error: null, online: true, count: 3 };
+const online = {
+  status: 'success' as const,
+  error: null,
+  online: true,
+  paused: false,
+  count: 3,
+};
 
 test('a pending query is loading, whatever else is true', () => {
   assert.equal(screenState({ ...online, status: 'pending', count: 0 }), 'loading');
@@ -68,4 +74,44 @@ test('a successful read of nothing is empty', () => {
 test('a successful read with rows has no state — there is content to render', () => {
   assert.equal(screenState({ ...online, count: 1 }), null);
   assert.equal(screenState({ ...online, count: 200 }), null);
+});
+
+// Query pauses a fetch when it believes it is offline instead of failing it, so
+// the query never reaches the error branch above. Until this input existed the
+// `offline` kind was dead code on every screen.
+
+test('a query paused with nothing to show is offline, not the loading skeleton', () => {
+  const state = screenState({
+    ...online,
+    status: 'pending',
+    online: false,
+    paused: true,
+    count: 0,
+  });
+  assert.equal(state, 'offline');
+});
+
+test('a paused query with a cached copy renders the copy, not the notice', () => {
+  // Restored from the durable cache: the read succeeded, and a background
+  // refetch being paused is no reason to take the rows away.
+  assert.equal(
+    screenState({ ...online, online: false, paused: true, count: 8 }),
+    null,
+  );
+});
+
+test('a pending query that is merely slow is still loading, offline or not', () => {
+  // The distinction is paused versus in flight. A cold dyno on a live
+  // connection must keep its skeleton.
+  assert.equal(screenState({ ...online, status: 'pending', count: 0 }), 'loading');
+  assert.equal(
+    screenState({ ...online, status: 'pending', online: false, count: 0 }),
+    'loading',
+  );
+});
+
+test('a paused query whose cached read found nothing is still empty', () => {
+  // Zero rows from a successful read is an empty section, not a lost
+  // connection — the reader is told the true thing either way.
+  assert.equal(screenState({ ...online, online: false, paused: true, count: 0 }), 'empty');
 });

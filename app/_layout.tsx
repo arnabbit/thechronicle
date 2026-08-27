@@ -14,21 +14,28 @@ import {
   DefaultTheme as NavigationDefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { useIsRestoring } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { FontDisplay, useFonts } from 'expo-font';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { createQueryClient } from '@/src/api/queryClient';
+import { bindConnectivity } from '@/src/api/connectivity';
+import { createQueryClient, persistOptions } from '@/src/api/queryClient';
+import { seedLatestFromCache } from '@/src/api/queries';
 import { PAPER } from '@/src/lib/title';
 import { ThemeProvider } from '@/src/theme/ThemeProvider';
 import { useTheme } from '@/src/theme/useTheme';
 
 SplashScreen.preventAutoHideAsync();
+
+// At boot, before any screen mounts: the app has to know whether it has a
+// connection before the first query decides what to do about it.
+bindConnectivity();
 
 // `FontDisplay.SWAP`: fallback text renders immediately while the real face
 // loads. The layout used to `return null` until fonts were ready, which on web
@@ -48,25 +55,64 @@ export default function RootLayout() {
     PublicSans_700Bold: swap(PublicSans_700Bold),
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
-  }, [fontsLoaded, fontError]);
-
   // Gesture-handler must be the outermost native view. Theme sits inside Query
   // so a themed error boundary can read both.
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
+        {/* `onSuccess` fires once the cache has been read back off the disk,
+            which is the only moment the sentinel can be seeded from what
+            survived — before the first screen asks for it. */}
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={() => seedLatestFromCache(queryClient)}
+        >
           <ThemeProvider>
-            <ThemedNavigator />
+            <RestoreGate fontsSettled={fontsLoaded || !!fontError}>
+              <ThemedNavigator />
+            </RestoreGate>
             <ThemedStatusBar />
             <DocumentTitle />
           </ThemeProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * Holds the stack back until the persisted cache has been read.
+ *
+ * A screen mounted against an empty cache asks its questions, renders the
+ * loading skeleton, and is then overwritten a frame later by the cached copy
+ * that was on disk the whole time. That flash is what this prevents — the
+ * screens are correct either way, so the fix belongs once at the root and not
+ * five times over.
+ *
+ * What it renders in the meantime is the paper's own ground and nothing else.
+ * Not the skeleton: the skeleton means *loading*, and restoring is not loading
+ * — showing it would be the flash, dressed up. Not `null` either: an uncovered
+ * root is how `rgb(242, 242, 242)` got on screen twice in this project
+ * already. This is the third surface with the same job as the pre-JS web shell
+ * and `ThemedNavigator` below, and it answers it the same way — whatever
+ * paints before the paper is ready paints the paper's ground.
+ *
+ * The splash is held for both conditions, so on Android the handover is splash
+ * straight to content with no intermediate surface at all.
+ */
+function RestoreGate({ fontsSettled, children }: { fontsSettled: boolean; children: ReactNode }) {
+  const { colors } = useTheme();
+  const restoring = useIsRestoring();
+
+  useEffect(() => {
+    if (fontsSettled && !restoring) SplashScreen.hideAsync();
+  }, [fontsSettled, restoring]);
+
+  if (restoring) {
+    return <View style={[styles.root, { backgroundColor: colors.background }]} />;
+  }
+  return <>{children}</>;
 }
 
 /**
