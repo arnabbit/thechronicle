@@ -13,8 +13,9 @@ import { type } from '@/src/theme/type';
 // articles to 85, so it is what tells a full day from a quiet one before the
 // reader opens it.
 //
-// `onPress` is optional and this is the destination-bearing component ticket 04
-// hands `/edition/:date` to. Until that route exists a tap does nothing.
+// `onPress` is optional — the archive hands it a push to `/edition/:date`, and
+// the row is a link only when it has somewhere to go, so a future list that
+// reuses it without a destination stays inert rather than dead.
 export function EditionCard({
   item,
   onPress,
