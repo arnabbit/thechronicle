@@ -78,7 +78,14 @@ test('nothing the suite imports reaches React Native, directly or transitively',
   }
 
   // Guard against a scan that walked nothing and passed by default.
-  for (const expected of ['src/lib/screenState.ts', 'src/lib/date.ts', 'src/lib/category.ts', 'src/api/errors.ts']) {
+  for (const expected of [
+    'src/lib/screenState.ts',
+    'src/lib/date.ts',
+    'src/lib/category.ts',
+    'src/lib/source.ts',
+    'src/lib/title.ts',
+    'src/api/errors.ts',
+  ]) {
     assert.ok(visited.includes(expected), `expected the scan to reach ${expected}, walked ${visited.join(', ')}`);
   }
 });
