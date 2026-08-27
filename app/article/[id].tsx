@@ -14,7 +14,6 @@ import { routeTitle } from '@/src/lib/title';
 import { BackLink } from '@/src/ui/BackLink';
 import { Masthead } from '@/src/ui/Masthead';
 import { ScreenState } from '@/src/ui/ScreenState';
-import { useDocumentTitle } from '@/src/ui/useDocumentTitle';
 import { useTheme } from '@/src/theme/useTheme';
 import { type } from '@/src/theme/type';
 
@@ -54,7 +53,6 @@ export default function ArticleDetail() {
   // its URL. Routing away would destroy the URL someone shared and make the
   // back button lie about where they went.
   const title = routeTitle(state === 'missing' ? 'Not in the paper' : article.data?.headline);
-  useDocumentTitle(title);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>

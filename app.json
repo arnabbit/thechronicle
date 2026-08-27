@@ -22,7 +22,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "name": "The Chronicle",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

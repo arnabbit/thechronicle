@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useEdition, useEditionArticles } from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { screenState } from '@/src/lib/screenState';
+import { routeTitle } from '@/src/lib/title';
 import { ArticleCard } from '@/src/ui/ArticleCard';
 import { CategoryNav } from '@/src/ui/CategoryNav';
 import { Masthead } from '@/src/ui/Masthead';
@@ -58,6 +59,10 @@ export default function TodaysPaper() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* The front page is the paper itself, so it names nothing else. It still
+          has to say so: without a title of its own, backing out of an article
+          left the article's headline in the tab. */}
+      <Stack.Screen options={{ title: routeTitle() }} />
       {/* The dateline shows the edition's own date, never the word "today", so
           a reader looking at Monday's paper on Wednesday is already told. */}
       <Masthead

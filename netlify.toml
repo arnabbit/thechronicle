@@ -1,0 +1,14 @@
+# Build settings live here rather than only in the Netlify UI, so the build that
+# produced a deploy is readable from the commit that caused it. Netlify gives
+# this file precedence over the dashboard.
+#
+# The redirect rule is deliberately *not* here: it belongs in `public/_redirects`,
+# which the export copies into the publish directory, so one file carries it and
+# `_redirects` is processed before netlify.toml rules anyway.
+
+[build]
+  command = "npx expo export -p web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

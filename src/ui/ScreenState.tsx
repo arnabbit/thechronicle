@@ -73,7 +73,24 @@ export function ScreenState({ kind, slug, line, sub, actionLabel, onAction }: Pr
   );
 }
 
-function Notice({ slug, line, sub, actionLabel, onAction }: Omit<Props, 'kind'>) {
+interface NoticeProps {
+  slug: string;
+  line: string;
+  sub?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+/**
+ * The paper's notice block: a short rule, a caps slug, one sentence, and where
+ * an action exists a bordered caps control.
+ *
+ * Exported because the not-found route is a notice without being a screen
+ * state. The five kinds describe a screen that asked the backend something; a
+ * URL matching no route never asked, so it borrows the shape and supplies its
+ * own words rather than pretending to be `empty`.
+ */
+export function Notice({ slug, line, sub, actionLabel, onAction }: NoticeProps) {
   const { colors } = useTheme();
   return (
     <View style={styles.notice}>
