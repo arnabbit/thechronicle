@@ -41,3 +41,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# wayfinder effort scratch (map + tickets, local tracking)
+.scratch/
