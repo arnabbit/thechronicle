@@ -1,11 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
-import type { Persister } from '@tanstack/react-query-persist-client';
 import { isNotFound } from '@/src/api/client';
-import { createSqlitePersister } from '@/src/api/sqlitePersister';
+import { createCachePersister } from '@/src/api/cacheStore';
 import { WIRE_CONTRACT_VERSION } from '@/src/api/types';
-import { canCacheOffline } from '@/src/capabilities';
 import { isPersistable } from '@/src/lib/persist';
 
 /** 5 minutes — mirrors ticket 04's `max-age=300` on anything resolved through
@@ -50,38 +46,14 @@ export function createQueryClient(): QueryClient {
 }
 
 /**
- * Where the persisted cache lives, and what busts it.
+ * What busts the persisted cache: the wire-contract version string, so a
+ * contract change discards the stored blob rather than restoring it and
+ * mis-parsing it against a shape that no longer exists.
  *
- * The buster is the wire-contract version string, so a contract change
- * discards the stored blob rather than restoring it and mis-parsing it against
- * a shape that no longer exists.
+ * *Where* it lives is `cacheStore` — SQLite on Android, `localStorage` on the
+ * web, chosen by the bundler rather than by a flag. Nothing else in the app
+ * knows which, and the eviction rule below is the same either way.
  */
-const CACHE_KEY = 'chronicle.query-cache';
-
-/**
- * Two stores, one seam.
- *
- * **Android gets SQLite.** AsyncStorage there is a 6 MB database this managed
- * app cannot resize, and the persister writes the whole cache as one row —
- * which Android's 2 MB `CursorWindow` refuses to read back. See
- * `sqlitePersister.ts` for the measurements.
- *
- * **The web keeps AsyncStorage**, where it is `localStorage`: no
- * `CursorWindow`, no SQLite cap, and therefore none of the ceiling this split
- * exists to remove.
- *
- * The choice is made here and nowhere else. No screen, no hook and no route
- * file can tell which store is active, and `src/capabilities.ts` goes on
- * answering what the platform *can do* rather than which database it uses.
- */
-function createPersister(): Persister {
-  if (canCacheOffline) return createSqlitePersister();
-  return createAsyncStoragePersister({
-    storage: AsyncStorage,
-    key: CACHE_KEY,
-    throttleTime: 5000,
-  });
-}
 
 /**
  * `maxAge: Infinity`, deliberately. The persister's own default is 24 hours,
@@ -90,7 +62,7 @@ function createPersister(): Persister {
  * decided per query at the dehydrate step instead, where 90 days is the rule.
  */
 export const persistOptions = {
-  persister: createPersister(),
+  persister: createCachePersister(),
   maxAge: Infinity,
   buster: WIRE_CONTRACT_VERSION,
   dehydrateOptions: {

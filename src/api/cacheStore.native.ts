@@ -1,7 +1,15 @@
 import * as SQLite from 'expo-sqlite';
 import type { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 
-// The Android store for the durable cache.
+// The Android store for the durable cache. `cacheStore.ts` is the web half.
+//
+// This is a **second** platform file split, and the navigator was supposed to
+// be the only one. It is here because it is not a stylistic branch: importing
+// `expo-sqlite` from a module the web build reaches pulls its WASM worker into
+// the web bundle, and Metro cannot resolve `wa-sqlite.wasm` — measured, in the
+// export output, as an unresolvable import on a build that has no use for
+// SQLite at all. A capability flag cannot fix that, because the bundler
+// resolves imports statically and does not care which branch runs.
 //
 // AsyncStorage cannot hold this cache safely. Three measured facts, in the
 // installed 2.2.0:
@@ -82,7 +90,7 @@ function throttle<T>(run: (value: T) => Promise<void>, ms: number): (value: T) =
   };
 }
 
-export function createSqlitePersister(): Persister {
+export function createCachePersister(): Persister {
   const write = throttle<PersistedClient>(async (client) => {
     try {
       const db = await database();
