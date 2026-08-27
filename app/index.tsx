@@ -79,7 +79,12 @@ export default function TodaysPaper() {
         <FlatList
           data={articles}
           keyExtractor={keyOf}
-          renderItem={({ item }) => <ArticleCard item={item} />}
+          renderItem={({ item }) => (
+            <ArticleCard
+              item={item}
+              onPress={() => router.push({ pathname: '/article/[id]', params: { id: item.id } })}
+            />
+          )}
           ItemSeparatorComponent={() => (
             <View style={[styles.hairline, { borderTopColor: colors.ruleHair }]} />
           )}
