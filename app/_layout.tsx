@@ -14,7 +14,7 @@ import {
   DefaultTheme as NavigationDefaultTheme,
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
-import { useIsRestoring } from '@tanstack/react-query';
+import { useIsRestoring, type QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { FontDisplay, useFonts } from 'expo-font';
 import { Stack, useNavigationContainerRef } from 'expo-router';
@@ -27,6 +27,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bindConnectivity } from '@/src/api/connectivity';
 import { createQueryClient, persistOptions } from '@/src/api/queryClient';
 import { seedLatestFromCache } from '@/src/api/queries';
+import { bindNotifications, registerIfPermitted } from '@/src/store/notifications';
+import { usePrompts } from '@/src/store/prompts';
 import { PAPER } from '@/src/lib/title';
 import { PeriodNavigator } from '@/src/ui/PeriodNavigator';
 import { ThemeProvider } from '@/src/theme/ThemeProvider';
@@ -79,6 +81,8 @@ export default function RootLayout() {
                 nothing until it is open, so the archive index behind it is not
                 fetched by readers who never ask for it. */}
             <PeriodNavigator />
+            {/* Above the stack, so neither path needs a router context. */}
+            <Notifications client={queryClient} />
             <ThemedStatusBar />
             <DocumentTitle />
           </ThemeProvider>
@@ -86,6 +90,29 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * The two notification paths, and the launch counter the end-of-feed slot
+ * reads.
+ *
+ * Registration re-POSTs on every launch because tokens rotate on reinstall,
+ * and it never asks: a reader who has not granted permission is left alone
+ * until they reach the end of the feed and are offered it there.
+ *
+ * Nothing here blocks startup. Everything it does is either a listener or a
+ * request nobody waits for.
+ */
+function Notifications({ client }: { client: QueryClient }) {
+  const countLaunch = usePrompts((state) => state.countLaunch);
+
+  useEffect(() => {
+    countLaunch();
+    void registerIfPermitted();
+    return bindNotifications(client);
+  }, [client, countLaunch]);
+
+  return null;
 }
 
 /**

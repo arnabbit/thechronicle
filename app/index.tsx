@@ -1,7 +1,7 @@
 import { onlineManager } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LATEST } from '@/src/api/endpoints';
 import {
@@ -16,11 +16,11 @@ import { useNavigator } from '@/src/store/navigator';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
 import { ArticleCard } from '@/src/ui/ArticleCard';
+import { FeedSlot } from '@/src/ui/FeedSlot';
 import { CategoryNav } from '@/src/ui/CategoryNav';
 import { Masthead } from '@/src/ui/Masthead';
 import { ScreenState, type ScreenStateKind } from '@/src/ui/ScreenState';
 import { useTheme } from '@/src/theme/useTheme';
-import { type } from '@/src/theme/type';
 
 // Today's paper. A route file: it reads its params, picks a state, and composes
 // from src/.
@@ -123,15 +123,9 @@ export default function TodaysPaper() {
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             // No spinner: a page that is still arriving says nothing, and the
-            // rows appear when they do. The end marker is the paper's own.
-            feed.hasNextPage ? null : (
-              <View style={styles.end}>
-                <View style={[styles.endRule, { borderTopColor: colors.ruleStrong }]} />
-                <Text style={[type.slug, styles.endText, { color: colors.secondary }]}>
-                  End of daily edition
-                </Text>
-              </View>
-            )
+            // rows appear when they do. What sits at the end is a *slot* — the
+            // paper's own closing marker, and above it at most one prompt.
+            feed.hasNextPage ? null : <FeedSlot label="End of daily edition" />
           }
         />
       )}
@@ -159,17 +153,5 @@ const styles = StyleSheet.create({
   },
   hairline: {
     borderTopWidth: 1,
-  },
-  end: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  endRule: {
-    borderTopWidth: 2,
-    width: 48,
-    marginBottom: 18,
-  },
-  endText: {
-    textAlign: 'center',
   },
 });
