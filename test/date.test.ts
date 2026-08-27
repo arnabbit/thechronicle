@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { formatDateline, formatLongDate, formatWeekday } from '../src/lib/date.ts';
+import { formatDateline, formatLongDate, formatWeekday, isEditionDate } from '../src/lib/date.ts';
 
 // `edition` is a YYYY-MM-DD calendar date in IST and is the only date on the
 // wire. Formatting it must be arithmetic on those digits — never a Date parsed
@@ -35,6 +35,49 @@ test('a malformed or empty edition formats to nothing rather than "Invalid Date"
     assert.equal(formatDateline(bad), '', bad);
     assert.equal(formatLongDate(bad), '', bad);
     assert.equal(formatWeekday(bad), '', bad);
+  }
+});
+
+test('an edition date is YYYY-MM-DD and a day that exists', () => {
+  for (const good of ['2026-08-27', '2026-01-01', '2026-12-31', '2024-02-29', '2000-02-29']) {
+    assert.equal(isEditionDate(good), true, good);
+  }
+});
+
+test('a malformed or impossible date is not an edition date, so the route asks for nothing', () => {
+  for (const bad of [
+    '',
+    undefined,
+    null,
+    'not-a-date',
+    'latest',
+    '2026-8-27',
+    '27-08-2026',
+    '2026-08-27T00:00:00Z',
+    '2026-13-01',
+    '2026-00-10',
+    '2026-02-31',
+    '2026-02-30',
+    '2026-04-31',
+    '2026-08-00',
+    '2026-08-32',
+    '2025-02-29',
+    '1900-02-29',
+  ]) {
+    assert.equal(isEditionDate(bad), false, String(bad));
+  }
+});
+
+test('every day of a leap year is an edition date, and one past each month end is not', () => {
+  for (let m = 1; m <= 12; m += 1) {
+    const mm = String(m).padStart(2, '0');
+    let last = 0;
+    for (let d = 1; d <= 31; d += 1) {
+      if (isEditionDate(`2024-${mm}-${String(d).padStart(2, '0')}`)) last = d;
+      else break;
+    }
+    assert.equal(last, [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1], mm);
+    assert.equal(isEditionDate(`2024-${mm}-${String(last + 1).padStart(2, '0')}`), false, mm);
   }
 });
 

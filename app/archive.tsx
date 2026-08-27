@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -73,7 +73,14 @@ export default function Archive() {
         <FlatList
           data={rows}
           keyExtractor={keyOf}
-          renderItem={({ item }) => <EditionCard item={item} />}
+          renderItem={({ item }) => (
+            <EditionCard
+              item={item}
+              onPress={() =>
+                router.push({ pathname: '/edition/[date]', params: { date: item.date } })
+              }
+            />
+          )}
           ItemSeparatorComponent={() => (
             <View style={[styles.hairline, { borderTopColor: colors.ruleHair }]} />
           )}
