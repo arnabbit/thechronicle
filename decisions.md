@@ -335,8 +335,28 @@ Verified for real, against a local MongoDB 7.0 seeded with the committed 1122-ar
 - **F01 on a device** — the launcher tile, the monochrome themed icon and the cold-launch splash need
   the APK installed. The artifact exists; installing it is the reader's call.
 - **F03's update notice** — permanently unverifiable until a release is published, as above.
-- **F10 and F13 in a running app.** The flags are flipped and the endpoints answer, but the app was
-  not driven against them on web or on device in this session.
+- **F10 and F13's offline and paging criteria.** Search's offline state and its second page, and the
+  navigator's bucket rows now that they lead somewhere, were not exercised.
+- **That a malformed period id makes no request.** The refusal renders correctly, but the browser
+  pane's network recorder captured nothing at all, so the "no request" half rests on the unit tests
+  rather than on observation.
+
+## F10 and F13, verified in a running app against the live backend
+
+Driven on web against the deployed endpoints, not against a stub:
+
+- All four period kinds render their skeleton from real data — week 5 editions / 94 articles, month
+  15 / 458, quarter 15 / 435, year 41 / 1130 — with the publishing rhythm and the sections that ran.
+- **The closed July says a written summary has not been added yet; the open August says the period is
+  still open.** This is the defect the previous branch's grill turned up, now confirmed correct
+  against a real `proseStatus: "pending"` from a backend with no LLM key — which is precisely the
+  case that used to read "still open" for both.
+- Empty January gives "No paper was published between 1 and 31 January."
+- A malformed id (`2026-W5`) and an out-of-range year (`1899`) both render the period-worded missing
+  state naming the four shapes.
+- Search is reachable from the masthead, returns live results newest-first with each row carrying its
+  edition date, shows a bare field for an empty query, and gives `NO MATCHES` naming the query with
+  the "Search matches whole words" sub for one that matches nothing.
 
 ## Known and unfixed, carried in deliberately
 
