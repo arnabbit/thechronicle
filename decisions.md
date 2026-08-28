@@ -156,23 +156,47 @@ should keep its headline in `secondary`. **That path is reasoned, not observed.*
 
 ---
 
-## Needs your call
+## Your calls — answered
 
-1. **Android pass before merge.** Yes, or merge on the web evidence?
-2. **The notice block moving** touches every state screen. Keep, or revert to left-aligned?
-3. **Nine pieces of unapproved copy**, above.
-4. **`prose` shape is inferred.** Ticket 13 writes `prose: {...}`; the design prototype renders one
-   paragraph per category, so `PeriodProse` is modelled as `{ byCategory: [{slug, name, text}] }`.
-   The endpoint does not exist, so nothing has ever validated this.
-5. **The period screen could work today.** Its skeleton — counts, timeline, editions — is derivable
-   from the archive index exactly as the navigator's buckets are. I did not build that, because the
-   ticket says the endpoint is the source and two sources for one screen would disagree. Say the
-   word if you would rather have it live before the endpoint ships.
-6. **A size cap on the persisted cache** is still not built. Ticket 13 deliberately excluded it; it
-   would be a fourth rule in `isPersistable`. The SQLite store removes the ceiling that made it
-   urgent, so this is now a choice rather than a fix.
-7. **Ticket 08 and 09 were gated together**, not each in isolation — the navigator's bucket rows
-   address the period route, so 08 alone does not typecheck under strict typed routes.
+All seven answered. Three needed code; each got its own commit.
+
+| # | The call | Answer | Commit |
+|---|---|---|---|
+| 1 | Android pass before merge | **Yes**, before merge | — (in progress; see Unverified) |
+| 2 | The notice block moving | **Keep** it centred | — (already as shipped in `fd204a5`) |
+| 3 | Nine pieces of unapproved copy | **Keep as written**, no rewording pass | — |
+| 4 | `prose` shape is inferred | **Grilled it** — the ticket beat the board | `34e626a`, `7623b0d`, `eda7856` |
+| 5 | Client-derived period skeleton | **No** — wait for the endpoint | — |
+| 6 | A size cap on the persisted cache | **No cap** | — |
+| 7 | 08 and 09 gated together | **Fine** | — |
+
+### What the grill on item 4 turned up
+
+The inference was worse than recorded. **Ticket 13's round-3 answer specifies three parts** — a short
+overall lede, one paragraph per category with enough in it, and a trailing line folding in the
+categories too thin for their own paragraph. **`design-17/PeriodView.dc.html` drew only the middle
+third**, and the app had modelled the board, so two of the three parts were missing entirely. The
+board pre-dates that answer, so the ticket wins.
+
+Also settled, and now written into `docs/adr/0001-period-prose-shape-is-client-inferred.md`:
+
+- The shape lives in `src/lib/periodProse.ts`, with a pure `parsePeriodProse` and 14 tests — the only
+  thing that has ever held it to anything. Parsed at the fetch boundary, so the normalised shape is
+  what enters the cache and what the persister writes. The skeleton is deliberately **not** parsed.
+- A paragraphs-only payload still renders, pinned by a test. If the endpoint is built to the board
+  rather than the ticket, the screen degrades rather than breaks.
+- `byCategory` is never re-sorted. The prose *is* the ranking.
+- Per-category `name` stays duplicated on the prose entry, so a frozen summary keeps the label it was
+  written under even if the category is later renamed.
+
+**And it found a defect neither of us had listed.** `proseStatus: 'pending'` means two things — a
+period still accumulating, and a closed one not yet summarised — and the screen said *"This period is
+still open"* for both. False for the second, and the second is the common case the moment the
+endpoint ships before its LLM key. Now derived from `range.to`, the same comparison `usePeriod`
+already makes for staleness. This is a copy *addition* rather than the rewording item 3 declined:
+one of the two sentences was simply wrong.
+
+`CONTEXT.md` is also new — the glossary neither repo had.
 
 ---
 
