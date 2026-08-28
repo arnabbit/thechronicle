@@ -89,7 +89,11 @@ function Edition({ date, category }: { date: string; category: string }) {
       {/* The dateline is this edition's date, never "today", which is the whole
           point of reading Monday's paper on Wednesday. It comes from the URL,
           so it is right before the edition row lands. */}
-      <Masthead edition={edition.data?.date ?? date} onPressDateline={() => openNavigator()} />
+      <Masthead
+        edition={edition.data?.date ?? date}
+        onPressDateline={() => openNavigator()}
+        navFollows
+      />
       <CategoryNav
         // This edition's own categories, server-injected with `home` first — a
         // day that filed nothing under Sport does not offer Sport.

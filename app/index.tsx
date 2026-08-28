@@ -94,6 +94,7 @@ export default function TodaysPaper() {
       <Masthead
         edition={edition.data?.date ?? articles[0]?.edition}
         onPressDateline={() => openNavigator()}
+        navFollows
       />
       <CategoryNav
         // The nav is scoped to *this* edition, which is what makes a past

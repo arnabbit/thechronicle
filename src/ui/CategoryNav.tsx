@@ -6,6 +6,11 @@ import { type } from '@/src/theme/type';
 // `home` arrives server-injected and first. The client must not special-case
 // it — it is a category slug like any other, and the feed simply omits the
 // filter when it is active.
+//
+// **This row closes the header**, in ink. design-17 nests the category row
+// inside the same ruled block as the wordmark and the dateline, so the 1px ink
+// rule falls below the categories — not under the date, which carries only its
+// own text-width underline. `Masthead` draws no rule when this follows it.
 export function CategoryNav({
   categories,
   active,
@@ -19,7 +24,7 @@ export function CategoryNav({
   if (categories.length === 0) return null;
 
   return (
-    <View style={[styles.wrapper, { borderBottomColor: colors.ruleHair }]}>
+    <View style={[styles.wrapper, { borderBottomColor: colors.ruleStrong }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -37,7 +42,9 @@ export function CategoryNav({
               <View
                 style={[
                   styles.item,
-                  isActive && { borderTopWidth: 2, borderTopColor: colors.primary, paddingTop: 4 },
+                  // `ruleStrong`, not `primary`: this is a rule, and on dark a
+                  // rule sits below the ink because a light one blooms.
+                  isActive && { borderTopWidth: 2, borderTopColor: colors.ruleStrong, paddingTop: 5 },
                 ]}
               >
                 <Text
@@ -68,7 +75,9 @@ const styles = StyleSheet.create({
     gap: 24,
     paddingHorizontal: 24,
   },
+  // 7 against the active tab's 5 + its 2px rule, so every label sits on one
+  // baseline whichever is active.
   item: {
-    paddingTop: 6,
+    paddingTop: 7,
   },
 });

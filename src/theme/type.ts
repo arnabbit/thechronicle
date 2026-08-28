@@ -12,14 +12,35 @@ export const fonts = {
   sansLight: 'PublicSans_300Light',
   sans: 'PublicSans_400Regular',
   sansMedium: 'PublicSans_500Medium',
+  sansSemiBold: 'PublicSans_600SemiBold',
   sansBold: 'PublicSans_700Bold',
 } as const;
 
 export const type = {
+  /** 30px, not 32: `THE CHRONICLE` measures 276px at 32 and a 320px phone
+   *  leaves 272 between the 24pt insets, so the old size overflowed its own
+   *  block on a small screen. 30 measures 264 and clears it. design-17 drew 30
+   *  and was right for a reason nobody had written down. */
   masthead: {
     fontFamily: fonts.serifBoldItalic,
-    fontSize: 32,
-    letterSpacing: -1.5,
+    fontSize: 30,
+    letterSpacing: -1,
+    textTransform: 'uppercase',
+  },
+  /** The dateline, which is a control and not furniture — so it carries the
+   *  paper's ink rather than the meta grey, at a weight nothing else uses. */
+  dateline: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  /** The utility row above the masthead: the two destinations that are not the
+   *  paper. Quieter than the dateline on purpose — they lead away from it. */
+  utility: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 11,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
   /** Feed row headline. Smaller than the old body-inline card: ticket 03 made

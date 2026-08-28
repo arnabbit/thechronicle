@@ -8,6 +8,7 @@ import {
   PublicSans_300Light,
   PublicSans_400Regular,
   PublicSans_500Medium,
+  PublicSans_600SemiBold,
   PublicSans_700Bold,
 } from '@expo-google-fonts/public-sans';
 import {
@@ -56,6 +57,11 @@ export default function RootLayout() {
     PublicSans_300Light: swap(PublicSans_300Light),
     PublicSans_400Regular: swap(PublicSans_400Regular),
     PublicSans_500Medium: swap(PublicSans_500Medium),
+    // The dateline's weight, and the only place it is used. design-17 set the
+    // date at 600 and nothing else in the paper is that weight; substituting
+    // the 500 or the 700 already loaded would quietly restyle the one control
+    // on the front page.
+    PublicSans_600SemiBold: swap(PublicSans_600SemiBold),
     PublicSans_700Bold: swap(PublicSans_700Bold),
   });
 
