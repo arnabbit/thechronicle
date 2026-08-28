@@ -18,6 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "package": "io.github.arnabbit.thechronicle",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -46,6 +48,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf4725ed-e358-486e-8c3e-a96e5ce93f53"
+      }
+    },
+    "owner": "arnab_bit",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bf4725ed-e358-486e-8c3e-a96e5ce93f53"
     }
   }
 }
