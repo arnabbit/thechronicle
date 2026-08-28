@@ -8,6 +8,7 @@
 import {
   onlineManager,
   useInfiniteQuery,
+  useQueries,
   useQuery,
   useQueryClient,
   type InfiniteData,
@@ -21,10 +22,12 @@ import {
   fetchEdition,
   fetchEditionArticles,
   fetchEditions,
+  fetchPeriod,
   fetchSearch,
 } from '@/src/api/endpoints';
 import type { EditionRow, FeedItem, Page } from '@/src/api/types';
 import { STALE_IMMUTABLE, STALE_LATEST } from '@/src/api/queryClient';
+import { parsePeriodId } from '@/src/lib/period';
 import { isSearchable, normaliseQuery } from '@/src/lib/searchQuery';
 
 export const queryKeys = {
@@ -44,6 +47,9 @@ export const queryKeys = {
    * does not exist yet; when it lands, this key is already outside it.
    */
   search: (q: string) => ['search', q] as const,
+  /** `period` is one of the durable prefixes, so a period a reader has opened
+   *  survives a session the way an edition does. */
+  period: (id: string) => ['period', id] as const,
 };
 
 /** A closed edition can never gain or lose an article, so it is worth nothing
@@ -295,4 +301,100 @@ export function usePrefetchEditions() {
 
     return () => clearTimeout(timer);
   }, [client]);
+}
+
+/**
+ * One period, aggregated.
+ *
+ * A *closed* period can never change — its editions are immutable and its
+ * prose is stored for ever once written — so it is worth nothing to
+ * revalidate. An *open* one is still accumulating, and gets the same five
+ * minutes anything reached through `latest` gets. The screen knows which it is
+ * from `proseStatus`, but the cache has to decide before the response arrives,
+ * so the decision is made on the range instead: a period whose last day is in
+ * the future, or is today, is still open.
+ */
+export function usePeriod(id: string, today: string) {
+  const period = parsePeriodId(id);
+  return useQuery({
+    queryKey: queryKeys.period(id),
+    queryFn: () => fetchPeriod(id),
+    staleTime: period && period.range.to < today ? STALE_IMMUTABLE : STALE_LATEST,
+    // A malformed id is refused here rather than sent: the server would 404 it
+    // and the screen renders the same thing either way, one round trip later.
+    enabled: Boolean(period),
+  });
+}
+
+/**
+ * The saved list's reads: one per kept id, revalidated on entry.
+ *
+ * **The one documented exception to the immutable-stale rule.** Every other
+ * article read sits at `Infinity` because ticket 01 made an id's content fixed
+ * for life — but "fixed for life" is not "exists for ever", and the saved list
+ * is the only surface that has to notice a withdrawal. `staleTime: 0` here
+ * refetches on mount and nowhere else; the detail screen's own observer keeps
+ * its own `Infinity`, so opening an article still never refetches it.
+ *
+ * Offline, revalidation is skipped outright rather than left to pause: there
+ * is nothing to learn, and every request would sit against a server with no
+ * timeout. The cached copy still renders — `enabled: false` does not hide data
+ * the cache already holds.
+ */
+export function useSavedArticles(ids: readonly string[]) {
+  const online = onlineManager.isOnline();
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: queryKeys.article(id),
+      queryFn: () => fetchArticle(id),
+      staleTime: 0,
+      // Entry to the screen is the trigger. Not focus, not an interval, and
+      // not app open — a reader who never opens this screen never pays.
+      refetchOnWindowFocus: false as const,
+      refetchOnReconnect: false as const,
+      enabled: online,
+    })),
+  });
+}
+
+/**
+ * A kept article the durable cache never got the body of, described from
+ * whatever else the cache holds.
+ *
+ * The store keeps only `{id, savedAt}`, so a row with no article record has no
+ * headline of its own. It usually has one anyway: the reader saw this story in
+ * a feed, and that feed page is persisted. Reading it back out of the cache is
+ * free — no request, no second source of truth — and it is what lets an
+ * offline row keep its category and headline at full ink while only its dek is
+ * replaced.
+ */
+export function findCachedFeedItem(client: QueryClient, id: string): FeedItem | undefined {
+  for (const entry of client.getQueryCache().getAll()) {
+    const [prefix, , articles] = entry.queryKey as unknown[];
+    if (prefix !== 'edition' || articles !== 'articles') continue;
+    const data = entry.state.data as InfiniteData<Page<FeedItem>, unknown> | undefined;
+    if (!data) continue;
+    for (const page of data.pages) {
+      const found = page.items.find((item) => item.id === id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The body behind a bookmark, fetched once and not waited on.
+ *
+ * The offline cache prefetches only the *current* edition's bodies, so an
+ * article bookmarked from a past edition — or from a search result — would
+ * otherwise be a kept thing with nothing kept. About 1.2 KB, and it is the
+ * request the reader was going to make anyway by opening it.
+ */
+export function prefetchArticleBody(client: QueryClient, id: string): void {
+  if (!onlineManager.isOnline()) return;
+  void client.prefetchQuery({
+    queryKey: queryKeys.article(id),
+    queryFn: () => fetchArticle(id),
+    staleTime: STALE_IMMUTABLE,
+  });
 }

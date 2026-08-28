@@ -30,6 +30,15 @@ export const type = {
     lineHeight: 29,
     letterSpacing: -0.4,
   },
+  /** The period screen's title — "August 2026" as a statement rather than a
+   *  headline. The one place the paper says a thing bigger than an article's
+   *  own headline, because a month is bigger than a story. */
+  display: {
+    fontFamily: fonts.serifBold,
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: -1,
+  },
   /** Article detail headline. */
   headlineLarge: {
     fontFamily: fonts.serifBold,

@@ -85,6 +85,13 @@ interface NoticeProps {
  * The paper's notice block: a short rule, a caps slug, one sentence, and where
  * an action exists a bordered caps control.
  *
+ * Centred in the space it is given, not hung off the top-left. Audited against
+ * ticket 18's prototypes (`design-18/Offline.dc.html` and its siblings): all
+ * four boards centre the block on both axes over a 56 px rule, and the build
+ * shipped it left-aligned over a 48 px one. A notice is the only thing on the
+ * screen when it renders, so the top-left corner is where a reader has to go
+ * looking for it.
+ *
  * Exported because the not-found route is a notice without being a screen
  * state. The five kinds describe a screen that asked the backend something; a
  * URL matching no route never asked, so it borrows the shape and supplies its
@@ -132,10 +139,13 @@ function FeedSkeleton() {
     <View style={styles.skeleton}>
       {slow ? (
         <View style={styles.slowNotice}>
-          <Text style={[type.slug, styles.slug, { color: colors.primary }]}>
+          {/* Left-aligned, unlike the centred notice block: this one sits
+              above feed-shaped rows and has to keep their margin, or the
+              skeleton reads as two unrelated things stacked. */}
+          <Text style={[type.slug, styles.slowSlug, { color: colors.primary }]}>
             {SLOW_COPY.slug}
           </Text>
-          <Text style={[type.sentence, styles.line, { color: colors.onSurface }]}>
+          <Text style={[type.sentence, styles.slowLine, { color: colors.onSurface }]}>
             {SLOW_COPY.line}
           </Text>
         </View>
@@ -181,29 +191,41 @@ function Bar({
 
 const styles = StyleSheet.create({
   notice: {
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    alignItems: 'flex-start',
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   noticeRule: {
-    borderTopWidth: 2,
-    width: 48,
-    marginBottom: 20,
+    borderTopWidth: 1,
+    width: 56,
+    marginBottom: 18,
   },
   slug: {
-    marginBottom: 12,
+    marginBottom: 13,
+    textAlign: 'center',
   },
   line: {
-    maxWidth: 460,
+    // The prototype's measure. 460 was wide enough to run these two-clause
+    // sentences onto one line on a tablet and read as a paragraph rather than
+    // as a notice.
+    maxWidth: 288,
+    textAlign: 'center',
   },
   sub: {
     marginTop: 12,
+    textAlign: 'center',
   },
   control: {
     marginTop: 28,
     borderWidth: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    // A 44 pt minimum is the smallest comfortable touch target, and the
+    // prototype sets it explicitly rather than leaving it to the padding.
+    minHeight: 44,
+    justifyContent: 'center',
   },
   skeleton: {
     paddingHorizontal: 24,
@@ -211,6 +233,12 @@ const styles = StyleSheet.create({
   },
   slowNotice: {
     paddingBottom: 32,
+  },
+  slowSlug: {
+    marginBottom: 12,
+  },
+  slowLine: {
+    maxWidth: 460,
   },
   skeletonRow: {
     borderTopWidth: 1,

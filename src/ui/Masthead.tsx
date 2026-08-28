@@ -9,20 +9,27 @@ import { type } from '@/src/theme/type';
 // above the masthead, a heavy rule beneath it, the dateline under that.
 //
 // Ticket 11 put search and saved here as two quiet affordances flanking the
-// masthead. Search is built; it renders only when `hasSearch` says the endpoint
-// is there, because a control that goes nowhere is worse than no control.
-// Flipping that one constant is the whole change — no screen work. `/saved`
-// still has no route, so its side of the masthead stays empty.
+// masthead. Search renders only when `hasSearch` says the endpoint is there,
+// because a control that goes nowhere is worse than no control — flipping that
+// one constant is the whole change.
+//
+// Saved carries no such flag and never will: it is device state, not a backend
+// surface, so it is available the moment the route exists. It sits on the left
+// and search on the right, both absolutely positioned, so the masthead stays
+// centred on the page rather than on whatever is left of it.
 export function Masthead({
   edition,
   onPressDateline,
   showSearch = true,
+  showSaved = true,
 }: {
   edition?: string;
   onPressDateline?: () => void;
   /** The search screen renders the masthead too, and an affordance pointing at
    *  the screen you are already on is furniture pretending to be a control. */
   showSearch?: boolean;
+  /** Same rule, for the saved screen's own masthead. */
+  showSaved?: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -31,6 +38,16 @@ export function Masthead({
       <Text style={[type.masthead, styles.masthead, { color: colors.primary }]}>
         The Chronicle
       </Text>
+      {showSaved ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Saved articles"
+          onPress={() => router.push('/saved')}
+          style={styles.affordanceLeft}
+        >
+          <Text style={[type.meta, { color: colors.secondary }]}>Saved</Text>
+        </Pressable>
+      ) : null}
       {/* Absolutely positioned, so the masthead is centred on the page and not
           on whatever is left of it — and so the flag being off changes the
           layout not at all. */}
@@ -70,6 +87,13 @@ const styles = StyleSheet.create({
     top: 24,
     paddingVertical: 6,
     paddingLeft: 12,
+  },
+  affordanceLeft: {
+    position: 'absolute',
+    left: 24,
+    top: 24,
+    paddingVertical: 6,
+    paddingRight: 12,
   },
   rule: {
     borderTopWidth: 2,
