@@ -8,6 +8,12 @@
 // restructure is gone, along with its client-side dek truncation. The server
 // owns that fallback now, permanently, so there is exactly one implementation
 // of it.
+//
+// The one exception, and the reason there is an import below at all: the period
+// prose shape is *inferred*, not transcribed off a deployed endpoint, so it
+// lives with the parser that defends it. See ADR 0001.
+
+import type { PeriodProse } from '@/src/lib/periodProse';
 
 /** The string identifying a wire-contract generation. Ticket 09 pins the
  *  persisted cache's `buster` to this, so a v1-shaped cache cannot hydrate into
@@ -74,16 +80,11 @@ export interface PeriodDay {
 }
 
 /**
- * Per category, in the period's own ranking — the prose ranks, so the screen
- * does not, and there is no headline list to re-order.
- *
- * The exact wire shape is the one place in this file that is inferred rather
- * than transcribed: ticket 13 writes it as `prose: {...}`, and the design
- * prototype renders it as one paragraph per category. Read defensively.
+ * The one shape in this file that is inferred rather than transcribed, so it
+ * lives in `src/lib/periodProse.ts` with the parser that defends it and the
+ * tests that are the only thing holding it to anything. See ADR 0001.
  */
-export interface PeriodProse {
-  byCategory: { slug: string; name: string; text: string }[];
-}
+export type { PeriodProse, ProseCategory } from '@/src/lib/periodProse';
 
 export interface PeriodView {
   id: string;

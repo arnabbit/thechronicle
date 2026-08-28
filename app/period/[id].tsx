@@ -232,17 +232,29 @@ function Categories({ view }: { view: PeriodView }) {
  *
  * Prose ranks the period, so the screen does not: there is no headline list to
  * order and no "top stories" to pick. When there is no prose the screen says
- * which kind of nothing it is — still open, or nothing to summarise — and
- * never implies a summary is loading when none was ever going to arrive.
+ * which kind of nothing it is — still open, not written yet, or nothing to
+ * summarise — and never implies a summary is loading when none was ever going
+ * to arrive.
+ *
+ * Three parts, per ticket 13's round-3 answer: a lede about the period, a
+ * paragraph per category that had enough in it, and one trailing line folding
+ * in the categories that did not. Each is rendered only if it arrived, so an
+ * endpoint built to the design board instead — paragraphs only — degrades to
+ * paragraphs rather than to nothing.
  */
 function Prose({ view }: { view: PeriodView }) {
   const { colors } = useTheme();
-  const entries = view.prose?.byCategory ?? [];
+  const prose = view.prose;
 
-  if (view.proseStatus === 'ready' && entries.length > 0) {
+  if (view.proseStatus === 'ready' && prose) {
     return (
       <View style={styles.section}>
-        {entries.map((entry) => (
+        {prose.lede ? (
+          <Text style={[type.sentence, styles.proseLede, { color: colors.onSurface }]}>
+            {prose.lede}
+          </Text>
+        ) : null}
+        {prose.byCategory.map((entry) => (
           <View key={entry.slug} style={[styles.proseRow, { borderBottomColor: colors.ruleHair }]}>
             <Text style={[type.slug, styles.proseHead, { color: colors.primary }]}>
               {entry.name || categoryLabel(entry.slug)}
@@ -250,6 +262,11 @@ function Prose({ view }: { view: PeriodView }) {
             <Text style={[type.sentence, { color: colors.onSurface }]}>{entry.text}</Text>
           </View>
         ))}
+        {prose.also ? (
+          <Text style={[type.meta, styles.proseAlso, { color: colors.secondary }]}>
+            {prose.also}
+          </Text>
+        ) : null}
       </View>
     );
   }
@@ -328,5 +345,15 @@ const styles = StyleSheet.create({
   },
   proseHead: {
     marginBottom: 10,
+  },
+  // The lede sits above the first category rule, so it carries the bottom
+  // padding a `proseRow` would have given it and none of the top.
+  proseLede: {
+    paddingBottom: 4,
+  },
+  // Below the last rule, in furniture weight — it is the categories that did
+  // *not* earn a paragraph, and it must not read as one more of them.
+  proseAlso: {
+    marginTop: 18,
   },
 });

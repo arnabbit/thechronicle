@@ -12,6 +12,7 @@
 // Periods and the push registry are additive and land with their own tickets.
 
 import { request } from '@/src/api/client';
+import { parsePeriodProse } from '@/src/lib/periodProse';
 import type { Article, EditionRow, FeedItem, Page, PeriodView } from '@/src/api/types';
 import type { LATEST_SENTINEL } from '@/src/lib/persist';
 
@@ -108,7 +109,15 @@ export async function fetchArticle(id: string): Promise<Article> {
  * for the prose half. Out-of-range and malformed ids are 404 server-side, and
  * `src/lib/period.ts` refuses them client-side first, so a mistyped id costs
  * no request at all.
+ *
+ * The prose half is parsed here rather than at the screen, so the normalised
+ * shape is what enters the cache and what gets persisted — one parse per
+ * response instead of one per render, and the durable copy on disk is already
+ * the shape this build expects. The skeleton is not parsed: it comes off a
+ * deterministic aggregate query, and if *it* is wrong the screen has nothing to
+ * fall back to anyway.
  */
 export async function fetchPeriod(id: string): Promise<PeriodView> {
-  return request<PeriodView>(`/api/v2/periods/${encodeURIComponent(id)}`);
+  const view = await request<PeriodView>(`/api/v2/periods/${encodeURIComponent(id)}`);
+  return { ...view, prose: parsePeriodProse(view.prose) };
 }
