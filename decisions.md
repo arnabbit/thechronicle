@@ -258,3 +258,26 @@ web without complaint. All installed through `expo install`, so they match the S
 Note the standing caution: the native runtime version is a fingerprint, so these four bumps mean an
 existing sideloaded install cannot run this JS bundle. That is ticket 16's territory, not this
 branch's, but it is now true.
+
+---
+
+# finish-the-revamp
+
+The five root tickets that were never built, plus the app-side flips that were waiting on them.
+Tickets in `.scratch/finish-the-revamp/issues/F01..F15`; F-numbers are their own sequence and do not
+line up with the root or app-set numbering.
+
+## F03 — the release is not published, and the update notice stays unverifiable
+
+`gh` on this machine is authenticated read-only on `arnabbit/thechronicle` and cannot create a
+release there, so **nothing was published**: no release, no draft, no tag, and no write attempted.
+Publishing waits for a session with the owner present.
+
+The consequence is written down rather than left silent. With no published release,
+`latestRelease()` returns `null`, so **the end-of-feed update notice can never appear and remains
+unverifiable** — exactly as it has been since it was written. That is the specified behaviour for
+"nothing to announce", not a defect, and it was deliberately *not* faked with a stub, a fixture or a
+throwaway release to make the notice render: a check that has only ever been exercised against a
+forged answer has not been exercised.
+
+F02's build was run, so an artifact exists; its URL is recorded below rather than uploaded anywhere.
