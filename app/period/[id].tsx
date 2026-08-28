@@ -126,7 +126,7 @@ export default function PeriodScreen() {
 
         <Timeline days={view.data.timeline} range={period.range} />
         <Categories view={view.data} />
-        <Prose view={view.data} />
+        <Prose view={view.data} closed={period.range.to < today} />
       </ScrollView>
     </Frame>
   );
@@ -241,8 +241,15 @@ function Categories({ view }: { view: PeriodView }) {
  * in the categories that did not. Each is rendered only if it arrived, so an
  * endpoint built to the design board instead — paragraphs only — degrades to
  * paragraphs rather than to nothing.
+ *
+ * `closed` is derived from the range by the caller rather than read off
+ * `proseStatus`, because `pending` means two different things: a period still
+ * accumulating, and a closed one whose summary has not been generated yet.
+ * Those need different sentences, and only one of them can honestly say the
+ * period is open. The comparison is the same one `usePeriod` makes to decide
+ * staleness, so the screen and the cache cannot disagree about it.
  */
-function Prose({ view }: { view: PeriodView }) {
+function Prose({ view, closed }: { view: PeriodView; closed: boolean }) {
   const { colors } = useTheme();
   const prose = view.prose;
 
@@ -274,9 +281,11 @@ function Prose({ view }: { view: PeriodView }) {
   return (
     <View style={styles.section}>
       <Text style={[type.meta, { color: colors.secondary }]}>
-        {view.proseStatus === 'pending'
-          ? 'This period is still open. A written summary is added once it closes.'
-          : 'No written summary for this period.'}
+        {view.proseStatus !== 'pending'
+          ? 'No written summary for this period.'
+          : closed
+            ? 'A written summary for this period has not been added yet.'
+            : 'This period is still open. A written summary is added once it closes.'}
       </Text>
     </View>
   );
