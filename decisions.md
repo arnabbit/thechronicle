@@ -114,25 +114,74 @@ the first paragraph, and so a reader can keep an article without scrolling it fi
 
 ---
 
-## Unverified
+## The Android pass — done
 
-**Everything on the device.** The phone was locked when I got to it — 3:12 AM on its clock,
-personal notifications on the lock screen, and `screencap` returning empty because the keyguard is
-secure. I stopped rather than try to get past a lock on your personal phone. So **nothing in this
-branch has run on Android.** Specifically unverified:
+Ran on the physical device (M2004J19PI, Expo Go, SDK 54) on 2026-08-28. Device left as found: night
+mode `no`, airplane mode off, `stayon false`, reverse rules removed, dev server killed, ports free.
 
-- the bottom sheet — the whole point of the platform split. The web popover is verified; the phone
-  half has never rendered.
-- the back gesture dismissing the sheet.
-- the notification offer, the decline line, and both notification paths. `canPush` is false on web,
-  so the end-of-feed slot has never rendered a prompt anywhere.
-- the SQLite persister. It has never opened a database. The web keeps working on AsyncStorage,
-  which is verified, but the Android store is code that has not run.
-- the update notice — also `canPush`-gated, so also web-invisible.
-- both palettes on the device.
+**Verified on device:**
 
-I would not merge this without an Android pass. The SQLite persister and the sheet are the two
-pieces where "it compiles and the web is fine" says least.
+- **The bottom sheet** — the whole point of the platform split, and it had never rendered. Opens from
+  the dateline caret, grabber above a "BROWSE BY PERIOD" head, the active segment inverts, and the
+  bucket rows carry counts. **Week** gives `24–30 August` 4, `17–23 August` 7, `10–16 August` 1,
+  `3–9 August` 2; **Month** gives August 14, July 5, May 1, April 10 — summing to the 30 loaded
+  editions, the same arithmetic the web popover produced.
+- **The back gesture dismisses it** and stays on the screen rather than popping the route.
+- **The SQLite persister.** Killed the process with `am force-stop`, put the phone in airplane mode,
+  cold-started: **the front page rendered the whole paper from disk** — dateline, category rail, four
+  headlines with deks. `cacheStore.native.ts` is the only store in the Android bundle, so a cold
+  restore with no network *is* that code working. It has now opened a database.
+- **`seedLatestFromCache` on Android.** The same screen proves it: the front page addresses the
+  edition by the `latest` sentinel, which is deliberately never persisted, so without the seeding
+  this would have said "No connection". That ticket-06 fix had only ever been confirmed on web.
+- **No restore flash** — the cold start showed content, never the skeleton.
+- **Save, share and the saved list.** SAVE → SAVED; the control reads *Share* on Android and opens
+  the system share sheet (cancelled without choosing a target); `/saved` lists the row; the bookmark
+  survived a process kill, so the zustand persist works on Android.
+- **The OFFLINE tag** on the saved list's section head, offline. The row correctly keeps category,
+  ink and dek at full strength, because its body *is* cached — not `unavailableOffline`.
+- **A saved article read offline**, cold: full body, developments and sources, from disk.
+- **Reconnect.** Airplane off, then `/period/2026-08`: the paused fetch resumed, the request went
+  out, the non-existent endpoint 404'd, and the screen rendered `missing` rather than sitting in
+  `loading`.
+- **The centred notice block** (decision 1) on device, on the period screen's own 404 copy.
+- **The notification offer**, at the end of the feed: "WHEN THE PAPER LANDS", left-aligned with the
+  rows above it as an inline prompt should be, NOTIFY ME / NOT NOW in ruled caps. **`NOT NOW` cleared
+  it** and the feed ended with the closing rule and "END OF DAILY EDITION" alone — one slot, at most
+  one prompt, and a decline that does not ask twice.
+- **Both palettes, swept numerically rather than eyeballed.** Every pixel of the full-screen captures
+  classified against `src/theme/tokens.ts`, counting a pixel on-palette only if it lies on the
+  segment between two named roles (antialiased type blends): **light 0 off-palette of 2,397,600**;
+  **dark 2,540, all of them Android's own gesture-nav home pill** at `y=2319..2326, x=381..697`.
+  So **0 app pixels off-palette in either palette**, and no `rgb(242,242,242)` anywhere.
+
+## Still unverified, and why
+
+**Expo Go cannot do remote push.** SDK 53 removed it, and the device logged exactly that on every
+launch, from `expo-notifications`' own auto-registration module. So these need a **development
+build**, not another device session:
+
+- the **accept** path — NOTIFY ME → OS permission dialog → `getExpoPushTokenAsync` → token POST.
+- the **"Notifications are off"** decline line. It renders only when the OS prompt is *refused*,
+  which requires reaching that prompt.
+- both **delivery** paths: foreground invalidating `latest`, and a tap prefetching the named edition
+  before pushing `/`.
+
+**The update notice** could not be reached either, because `arnabbit/thechronicle` has no published
+release: `latestRelease()` answers `null` and the slot correctly says nothing. What the device *does*
+confirm is the quiet-failure half — the slot rendered the offer and then nothing, with no error state
+and no retry storm. The notice itself is unproven.
+
+**`unavailableOffline`** is still verified nowhere. It needs a saved article whose body is absent
+while its feed row is cached *and* the device offline. Bookmarking prefetches the body, so the state
+cannot be reached by ordinary use on a healthy install; on web I forced `dead` by seeding a withdrawn
+id, but Expo Go is not debuggable (`run-as: package not debuggable`) so nothing can be seeded on the
+phone. It needs the same development build.
+
+The `dead`-with-cached-headline path remains reasoned, not observed.
+
+**Nothing that blocks the merge is left.** The two pieces where "it compiles and the web is fine"
+said least — the sheet and the SQLite persister — are both now observed working on the phone.
 
 **Verified on web**, in both palettes, every route from a pasted URL, colours swept against
 `src/theme/tokens.ts` rather than eyeballed — 0 off-palette, no `rgb(242,242,242)`:
@@ -162,7 +211,7 @@ All seven answered. Three needed code; each got its own commit.
 
 | # | The call | Answer | Commit |
 |---|---|---|---|
-| 1 | Android pass before merge | **Yes**, before merge | — (in progress; see Unverified) |
+| 1 | Android pass before merge | **Yes**, before merge | — (done; see The Android pass) |
 | 2 | The notice block moving | **Keep** it centred | — (already as shipped in `fd204a5`) |
 | 3 | Nine pieces of unapproved copy | **Keep as written**, no rewording pass | — |
 | 4 | `prose` shape is inferred | **Grilled it** — the ticket beat the board | `34e626a`, `7623b0d`, `eda7856` |
