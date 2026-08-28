@@ -309,17 +309,30 @@ export function usePrefetchEditions() {
  * A *closed* period can never change — its editions are immutable and its
  * prose is stored for ever once written — so it is worth nothing to
  * revalidate. An *open* one is still accumulating, and gets the same five
- * minutes anything reached through `latest` gets. The screen knows which it is
- * from `proseStatus`, but the cache has to decide before the response arrives,
- * so the decision is made on the range instead: a period whose last day is in
+ * minutes anything reached through `latest` gets: a period whose last day is in
  * the future, or is today, is still open.
+ *
+ * One correction to that rule, which cost nothing to state and would have cost a
+ * reader their summary: a closed period is only immutable once its `proseStatus`
+ * has stopped being `pending`. See the note on `staleTime` below.
  */
 export function usePeriod(id: string, today: string) {
   const period = parsePeriodId(id);
+  const closed = Boolean(period && period.range.to < today);
   return useQuery({
     queryKey: queryKeys.period(id),
     queryFn: () => fetchPeriod(id),
-    staleTime: period && period.range.to < today ? STALE_IMMUTABLE : STALE_LATEST,
+    // **A closed period is immutable only once its summary has settled.** The
+    // skeleton is fixed the moment the period closes, but the prose is written
+    // on first view and arrives *after* the response that triggered it — so the
+    // reader who caused it to be written is exactly the reader whose cache would
+    // otherwise hold "no summary yet" for ever, across sessions, because this
+    // key is persisted and `Infinity` never revalidates.
+    //
+    // `pending` is the only status that moves. `ready` is final, and `none` means
+    // the period is empty and never will be summarised.
+    staleTime: (query) =>
+      closed && query.state.data?.proseStatus !== 'pending' ? STALE_IMMUTABLE : STALE_LATEST,
     // A malformed id is refused here rather than sent: the server would 404 it
     // and the screen renders the same thing either way, one round trip later.
     enabled: Boolean(period),
