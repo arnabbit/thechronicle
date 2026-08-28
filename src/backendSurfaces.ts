@@ -13,9 +13,14 @@
 // Build-time constants, defaulting off. Turning one on when its endpoint ships
 // is this one line and no screen work.
 
-/** `GET /api/v2/search` — ticket 08's endpoint. Not deployed. */
-export const hasSearch = false;
+/** `GET /api/v2/search` — ticket 08's endpoint. Deployed and answering. */
+export const hasSearch = true;
 
-/** `GET /api/v2/periods/:id` — ticket 13's endpoint. Not deployed, and it
- *  additionally waits on the backend gaining an LLM key. */
-export const hasPeriod = false;
+/** `GET /api/v2/periods/:id` — ticket 13's endpoint. Deployed and answering.
+ *
+ *  Deliberately on before the written summaries exist. The skeleton is the half
+ *  that is always true, and the screen was built to render it unconditionally
+ *  and treat prose as a bonus: until the backend has an LLM key, a closed
+ *  period says a summary has not been added yet and an open one says it is
+ *  still open. Both are true sentences, so there is nothing to wait for. */
+export const hasPeriod = true;

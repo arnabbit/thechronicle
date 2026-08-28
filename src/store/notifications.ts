@@ -1,6 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { API_BASE } from '@/src/api/client';
 import { LATEST, fetchEdition, fetchEditionArticles } from '@/src/api/endpoints';
 import { queryKeys } from '@/src/api/queries';
@@ -129,12 +131,23 @@ export async function registerIfPermitted(): Promise<void> {
 
 async function registerToken(): Promise<void> {
   const token = await Notifications.getExpoPushTokenAsync();
-  // The registry is the backend half of this and is gated behind the
-  // write-key cutover, so this will fail until it ships. It fails quietly:
-  // there is nothing a reader could do about it and nothing to tell them.
+  // Version is two axes, not one. `appVersion` is the native build; `updateId`
+  // is the JS bundle running on top of it. Two installs reporting the same
+  // `appVersion` can be running completely different JS, so `appVersion` alone
+  // cannot answer "how many installs are stranded on an old native layer" —
+  // which is the question the fingerprint runtime policy makes worth asking.
+  //
+  // Both are empty in Expo Go and in a development build: there is no update
+  // channel and no versionCode to read. The registry accepts that rather than
+  // failing, because a build with no update id is a normal build.
   await fetch(`${API_BASE}/api/v2/push/tokens`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: token.data, platform: 'android' }),
+    body: JSON.stringify({
+      token: token.data,
+      platform: 'android',
+      appVersion: String(Constants.expoConfig?.android?.versionCode ?? ''),
+      updateId: Updates.updateId ?? '',
+    }),
   }).catch(() => undefined);
 }
