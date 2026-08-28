@@ -281,3 +281,89 @@ throwaway release to make the notice render: a check that has only ever been exe
 forged answer has not been exercised.
 
 F02's build was run, so an artifact exists; its URL is recorded below rather than uploaded anywhere.
+
+## F02 — the APK that was built
+
+EAS generated and holds the keystore; no key material was handled here. Exporting a copy into a
+password manager remains a human step.
+
+```
+build      811e75b5-ebee-45be-bacd-99b93f877bba   profile apk, channel production
+artifact   https://expo.dev/artifacts/eas/X5PzcqP5UOWTBOf9kBrT1AFlGg6CZzHVTNFZhpSRDrg.apk
+package    io.github.arnabbit.thechronicle        versionCode 1
+runtime    fingerprint 9ccb4d7179ebdbd819d4a4302cd97d137b8fb890
+```
+
+Built from the tree at F01/F02, so it does **not** carry F05's registration payload or the F10/F13
+flag flips. It is the artifact F02 asked for, not a release candidate.
+
+`eas.json` deliberately has no development profile: one fails at build time without
+`expo-dev-client`, and adding that dependency is a change no ticket asked for — it also moves the
+native fingerprint and so cuts existing installs off from JS updates.
+
+## What is verified, and what is not
+
+Verified for real, against a local MongoDB 7.0 seeded with the committed 1122-article backup:
+
+- **F04** — an unauthenticated valid token 200s, a malformed one 400s, three posts of one token leave
+  one row with `createdAt` behind `lastSeen`, and the stored document has exactly the six fields.
+- **F06** — the first push into a new date key notified; a second push the same day sent nothing. The
+  send went to Expo's real push API with a fabricated token, so nothing reached a device.
+- **F07** — a `DeviceNotRegistered` ticket deleted that token; with sending gated off, a 100-day-old
+  token was swept while an 89-day-old and a fresh one survived; `explain()` shows `IXSCAN` on
+  `lastSeen_1`; a pruned device that re-registers is stored again.
+- **F08 / F09** — the index carries the specced weights and excludes `sourcePosts`; 133 matches for
+  "court" walked end to end through `next_cursor` as 133 unique ids with no repeat and no gap;
+  newest first; a hidden article absent; a word only in `sourcePosts` returns nothing; `q` of 0, 1
+  and 101 characters refused; `limit=500` capped to 50.
+- **F11** — 630 ids and 1461 dates compared against the app's own module, in the suite.
+- **F12** — all four kinds with every specced field; an empty January and an empty 2020 return zero
+  counts rather than 404; `2026-W5`, `2026-13`, `1899`, `3000`, `2025-W53` and a full date all 404; a
+  closed July caches for a day while the open August caches for five minutes; hiding one article
+  dropped the period count, the timeline day and the edition count together.
+- **F14** — with no key: no call, no throw, `pending`, skeleton intact. An open period never
+  generates; an empty one stays `none`; a stored summary reads back as `ready` in the ADR shape with
+  no model call. A dry run over July's 115 headlines shows the prompt carries headlines only.
+
+**Not verified, with the reason:**
+
+- **The live OpenRouter call** (F14). There is no `OPENROUTER_API_KEY` in this environment and none
+  was requested. Everything either side of the call is verified; the call itself is not.
+- **Every device-side path in F04–F07** — a real token being issued, a notification arriving, the tap
+  routing, the foreground suppression. Expo Go dropped remote push in SDK 53, and a development
+  build needs `expo-dev-client`, which is not installed.
+- **F01 on a device** — the launcher tile, the monochrome themed icon and the cold-launch splash need
+  the APK installed. The artifact exists; installing it is the reader's call.
+- **F03's update notice** — permanently unverifiable until a release is published, as above.
+- **F10 and F13 in a running app.** The flags are flipped and the endpoints answer, but the app was
+  not driven against them on web or on device in this session.
+
+## Known and unfixed, carried in deliberately
+
+An adversarial review pass found these. They were reported before the merge and the merge went ahead
+anyway; they are written down here rather than left as a surprise.
+
+1. **The period endpoint `await`s the model call inline**, with a 90-second timeout. A first view of a
+   closed period can therefore gateway-timeout and return **no skeleton** — the one thing that
+   endpoint is supposed to always manage. Only bites once per period, and only when a key is set.
+2. **No unique index on `periodProse.periodId` or `pushTokens.token`.** An upsert is only atomic
+   against a unique index, so N concurrent first views of a period mean N paid model calls, and two
+   racing registrations of one device can leave two rows — that device is then notified twice. A
+   generation that fails is also retried on every later view, for ever: there is no negative cache.
+3. **The Expo send never checks `response.ok`** before `response.json()`. A 502 HTML body throws, so
+   the remaining batches are never sent *and* the `.then(pruneTokens)` chain is skipped, taking both
+   prune signals with it. The success log also counts every token as notified, including tickets that
+   came back as errors.
+4. **`token` has no length cap** on a deliberately unauthenticated endpoint, where `platform` and both
+   version axes are capped. A 100 KB token-shaped string is a valid row for ninety days.
+5. **A legacy row with a null `category`** makes the whole period response 500 on the first count tie,
+   because `a.slug.localeCompare(b.slug)` is called on `null`. Writes have defaulted to `world` for a
+   while, so this needs a pre-backfill document.
+6. **`appVersion` cannot answer the question it was added for.** `Constants.expoConfig` is the running
+   *manifest's* config, so after an OTA it reports the bundle's declared `versionCode`, not the
+   installed native build's — the same axis `updateId` already covers. And with `versionCode`
+   hardcoded to 1 and `appVersionSource: local`, it is the constant `"1"` until someone edits it.
+   `Updates.runtimeVersion` is the value that would actually answer it, and is the one not sent.
+7. **`validateProse` re-sorts `byCategory` by article count**, which is derivable from the skeleton the
+   client already holds — so the stored order is not carrying the information the comment and ADR
+   0003 claim it carries. Either the sort is wrong or the justification is.
