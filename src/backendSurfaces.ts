@@ -13,8 +13,8 @@
 // Build-time constants, defaulting off. Turning one on when its endpoint ships
 // is this one line and no screen work.
 
-/** `GET /api/v2/search` — ticket 08's endpoint. Not deployed. */
-export const hasSearch = false;
+/** `GET /api/v2/search` — ticket 08's endpoint. Deployed and answering. */
+export const hasSearch = true;
 
 /** `GET /api/v2/periods/:id` — ticket 13's endpoint. Not deployed, and it
  *  additionally waits on the backend gaining an LLM key. */
