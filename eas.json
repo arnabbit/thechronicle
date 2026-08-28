@@ -9,14 +9,6 @@
         "buildType": "apk"
       },
       "channel": "production"
-    },
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "channel": "development"
     }
   },
   "submit": {}
