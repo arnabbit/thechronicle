@@ -12,7 +12,7 @@
 // Periods and the push registry are additive and land with their own tickets.
 
 import { request } from '@/src/api/client';
-import { parsePeriodProse } from '@/src/lib/periodProse';
+import { parsePeriodStory, parseStoryStatus } from '@/src/lib/periodStory';
 import type { Article, EditionRow, FeedItem, Page, PeriodView } from '@/src/api/types';
 import type { LATEST_SENTINEL } from '@/src/lib/persist';
 
@@ -102,22 +102,36 @@ export async function fetchArticle(id: string): Promise<Article> {
   return request<Article>(`/api/v2/articles/${encodeURIComponent(id)}`);
 }
 
+/** The period as it arrives: the story half is not trusted until parsed. */
+type PeriodWire = Omit<PeriodView, 'story' | 'storyStatus'> & {
+  story?: unknown;
+  storyStatus?: unknown;
+};
+
 /**
- * A week, month, quarter or year at a glance. Ticket 13's endpoint.
+ * A week, month, quarter or year at a glance.
  *
- * Not deployed, and it additionally waits on the backend gaining an LLM key
- * for the prose half. Out-of-range and malformed ids are 404 server-side, and
- * `src/lib/period.ts` refuses them client-side first, so a mistyped id costs
- * no request at all.
+ * Out-of-range and malformed ids are 404 server-side, and `src/lib/period.ts`
+ * refuses them client-side first, so a mistyped id costs no request at all.
  *
- * The prose half is parsed here rather than at the screen, so the normalised
- * shape is what enters the cache and what gets persisted — one parse per
- * response instead of one per render, and the durable copy on disk is already
- * the shape this build expects. The skeleton is not parsed: it comes off a
- * deterministic aggregate query, and if *it* is wrong the screen has nothing to
- * fall back to anyway.
+ * The story is parsed here rather than at the screen, so the normalised shape
+ * is what enters the cache and what gets persisted — one parse per response,
+ * not one per render. Only the named fields are kept, so a field the wire has
+ * dropped cannot ride along into the cache. The skeleton is not parsed: it
+ * comes off a deterministic aggregate query, and if *it* is wrong the screen has
+ * nothing to fall back to anyway.
  */
 export async function fetchPeriod(id: string): Promise<PeriodView> {
-  const view = await request<PeriodView>(`/api/v2/periods/${encodeURIComponent(id)}`);
-  return { ...view, prose: parsePeriodProse(view.prose) };
+  const view = await request<PeriodWire>(`/api/v2/periods/${encodeURIComponent(id)}`);
+  return {
+    id: view.id,
+    kind: view.kind,
+    range: view.range,
+    editionCount: view.editionCount,
+    articleCount: view.articleCount,
+    categories: view.categories,
+    timeline: view.timeline,
+    story: parsePeriodStory(view.story),
+    storyStatus: parseStoryStatus(view.storyStatus),
+  };
 }

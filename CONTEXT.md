@@ -3,11 +3,14 @@
 The paper's own vocabulary. A glossary and nothing else — no implementation
 detail, no decisions. Decisions live in `docs/adr/`.
 
+A term that also appears in the backend's own `CONTEXT.md` means the same thing
+on both sides. When it changes, it changes in both files.
+
 ## The paper
 
 **Edition** — one day's paper, addressed by its IST date (`2026-08-27`) or by
-the sentinel `latest`. An edition is immutable once published: a date names the
-same set of articles for ever.
+the sentinel `latest`. An edition can still gain articles after it is published,
+when the publisher files a late one into its date.
 
 **Article** — one piece in one edition. Its id is derived from its content and
 its edition's date key, so an id names fixed content for life. An article can
@@ -19,7 +22,7 @@ cannot tell the two apart and does not need to.
 
 **Dek** — the standfirst under a headline. **Kicker** and **slug** are the small
 ruled capitals above and beside things; **furniture** is the collective word for
-all of it — datelines, counts, controls — as opposed to prose.
+all of it — datelines, counts, controls — as opposed to headlines and body text.
 
 **Developments** — the running updates attached to an article.
 
@@ -35,9 +38,10 @@ the reader is.
 published inside it. Its four kinds are collectively its **kind**.
 
 **Open period** — one whose last day is today or in the future; still
-accumulating editions. **Closed period** — one whose last day has passed.
-A closed period can never change, because a new article can never be given a
-past date key.
+accumulating editions. **Closed period** — one whose last day has passed. It is
+normally settled but can still change: its story grows through the grace
+window, and a late article filed into one of its editions is new evidence for
+it.
 
 **Empty period** — a valid, in-range period that contains no editions. This is
 the commonest answer the period screen gives, not a failure. Distinct from a
@@ -45,20 +49,43 @@ period **outside the paper's run**, which does not resolve at all.
 
 ## A period view
 
-**Skeleton** — the deterministic aggregate half of a period: edition count,
-article count, per-category counts, and the day-by-day timeline. Always present,
-always truthful, computable retroactively.
+**Skeleton** — the deterministic half: edition count, article count,
+per-category counts, and the day-by-day timeline. Always present, always
+truthful, computable retroactively.
 
-**Prose** — the synthesised half: written retrospective, generated once from the
-period's headlines when a closed period is first viewed, then stored for ever.
-A bonus the screen never waits for. Its three parts are the **lede** (a few
-sentences about the period as a whole), one paragraph **per category**, and the
-**fold-in line** — the single trailing sentence covering categories too thin to
-earn a paragraph.
+**Thread** — one running story across editions ("the ceasefire talks"). Global
+and shared by every period, so a week and a year agree on what one story is.
+Every article belongs to exactly one.
 
-**Ranking** — prose *is* the ranking. There is no headline list in a period view
-and nothing is sorted on the client, because the underlying data cannot supply
-an ordering and the generated sentences can.
+**Important story** — a thread that passes four checks inside a given period:
+**verified**, **material change**, **consequences** and **lasting**. Judged over
+the period's evidence to date, never within one day, and against that period's
+own range, so a story can be important in its week and not in its year.
+
+**Period story** — the growing article for one period, telling only its
+important stories. It grows at the end, one section at a time; what is already
+written stays as written. The screen never waits for it.
+
+**Section** — one dated part of a period story, written by one run for one
+edition date. Frozen once its date has passed; only a section dated today can
+still be rewritten. A run that finds nothing important writes no section.
+
+**Entry** — one item in a section. **New**: an important story told for the
+first time, from its start in the period. **Update**: only what is new in an
+admitted story since its last entry. **Correction**: what an earlier entry got
+wrong, appended; the earlier text is not edited.
+
+**Admitted** — a thread that has a new entry in a period story. Only an
+admitted thread gets updates or corrections. Admission is per period.
+
+**Grace window** — the 3 days after a period's last day. Editions inside it are
+evidence for the period and can still admit stories that happened inside it;
+they are never cited, and a run inside it only admits.
+
+**Ranking** — the story order is the ranking. Sections read by date, and entries
+within a section in the editor's order of importance. A period view has no
+headline list and nothing re-sorts the story downstream: the order it is stored
+in is the order it means.
 
 ## States
 

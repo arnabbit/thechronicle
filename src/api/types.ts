@@ -10,15 +10,16 @@
 // of it.
 //
 // The one exception, and the reason there is an import below at all: the period
-// prose shape is *inferred*, not transcribed off a deployed endpoint, so it
-// lives with the parser that defends it. See ADR 0001.
+// story is LLM output, so its shape lives with the parser that defends it.
 
-import type { PeriodProse } from '@/src/lib/periodProse';
+import type { PeriodStory, StoryStatus } from '@/src/lib/periodStory';
 
 /** The string identifying a wire-contract generation. Ticket 09 pins the
  *  persisted cache's `buster` to this, so a v1-shaped cache cannot hydrate into
- *  v2 screens at cutover. Bump it whenever a payload shape changes. */
-export const WIRE_CONTRACT_VERSION = 'v2';
+ *  v2 screens at cutover. Bump it whenever a payload shape changes. The period
+ *  view's summary became its story, so a persisted period without one must not
+ *  hydrate. */
+export const WIRE_CONTRACT_VERSION = 'v2-story';
 
 export interface Category {
   slug: string;
@@ -59,15 +60,12 @@ export interface Page<T> {
 }
 
 /**
- * A stretch of the paper, aggregated. Ticket 13's consolidated contract.
+ * A stretch of the paper, aggregated.
  *
  * The **skeleton** — counts, categories, timeline — is a deterministic
  * aggregate and is always present, so the screen renders it unconditionally.
- * The **prose** is synthesised once, on first view of a *closed* period, and
- * stored for ever; an open period is skeleton-only. Prose is therefore a bonus
- * the screen treats as optional, never a thing it waits for.
- *
- * Not deployed. Built against the contract behind `hasPeriod`.
+ * The **story** grows by one dated section per run, while the period is open
+ * and for a short grace window after it closes. The screen never waits for it.
  */
 export interface PeriodCategory extends Category {
   count: number;
@@ -79,12 +77,14 @@ export interface PeriodDay {
   count: number;
 }
 
-/**
- * The one shape in this file that is inferred rather than transcribed, so it
- * lives in `src/lib/periodProse.ts` with the parser that defends it and the
- * tests that are the only thing holding it to anything. See ADR 0001.
- */
-export type { PeriodProse, ProseCategory } from '@/src/lib/periodProse';
+/** The story's shape lives in `src/lib/periodStory.ts`, with its parser. */
+export type {
+  PeriodStory,
+  StoryEntry,
+  StoryEntryKind,
+  StorySection,
+  StoryStatus,
+} from '@/src/lib/periodStory';
 
 export interface PeriodView {
   id: string;
@@ -94,10 +94,9 @@ export interface PeriodView {
   articleCount: number;
   categories: PeriodCategory[];
   timeline: PeriodDay[];
-  prose: PeriodProse | null;
-  /** `ready` when prose exists, `pending` while a closed period has not been
-   *  summarised yet or the period is still open, `none` when there was nothing
-   *  to summarise. The screen says which — it never implies prose is coming
-   *  when it is not. */
-  proseStatus: 'ready' | 'pending' | 'none';
+  /** Sections and entries in wire order, which is the ranking. */
+  story: PeriodStory;
+  /** `none` when the period has nothing visible in it, `writing` while a run
+   *  is due or queued, `ready` when caught up — possibly with no sections. */
+  storyStatus: StoryStatus;
 }

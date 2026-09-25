@@ -8,8 +8,8 @@ import { isPersistable } from '@/src/lib/persist';
  *  `latest`, which is the only shape that can change under a reader. */
 export const STALE_LATEST = 5 * 60 * 1000;
 
-/** Past editions, articles and closed periods are immutable (tickets 02, 13),
- *  and ticket 01 made an article id's content fixed for life. Revalidating any
+/** Past editions and articles are immutable (ticket 02), and ticket 01 made an
+ *  article id's content fixed for life. Periods are not: their story grows. Revalidating any
  *  of them is pure waste. `/saved`'s bookmark revalidation is the one
  *  documented exception — it must be able to observe a 404. */
 export const STALE_IMMUTABLE = Infinity;

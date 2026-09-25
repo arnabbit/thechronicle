@@ -306,33 +306,17 @@ export function usePrefetchEditions() {
 /**
  * One period, aggregated.
  *
- * A *closed* period can never change — its editions are immutable and its
- * prose is stored for ever once written — so it is worth nothing to
- * revalidate. An *open* one is still accumulating, and gets the same five
- * minutes anything reached through `latest` gets: a period whose last day is in
- * the future, or is today, is still open.
- *
- * One correction to that rule, which cost nothing to state and would have cost a
- * reader their summary: a closed period is only immutable once its `proseStatus`
- * has stopped being `pending`. See the note on `staleTime` below.
+ * Every period gets the same five minutes `latest` gets, closed or not. Its
+ * story grows while it is open, during the grace window after it closes, and
+ * when an edition is filed late — so no period is ever immutable here, and a
+ * reader who reopens one sees a newly added section within five minutes.
  */
-export function usePeriod(id: string, today: string) {
+export function usePeriod(id: string) {
   const period = parsePeriodId(id);
-  const closed = Boolean(period && period.range.to < today);
   return useQuery({
     queryKey: queryKeys.period(id),
     queryFn: () => fetchPeriod(id),
-    // **A closed period is immutable only once its summary has settled.** The
-    // skeleton is fixed the moment the period closes, but the prose is written
-    // on first view and arrives *after* the response that triggered it — so the
-    // reader who caused it to be written is exactly the reader whose cache would
-    // otherwise hold "no summary yet" for ever, across sessions, because this
-    // key is persisted and `Infinity` never revalidates.
-    //
-    // `pending` is the only status that moves. `ready` is final, and `none` means
-    // the period is empty and never will be summarised.
-    staleTime: (query) =>
-      closed && query.state.data?.proseStatus !== 'pending' ? STALE_IMMUTABLE : STALE_LATEST,
+    staleTime: STALE_LATEST,
     // A malformed id is refused here rather than sent: the server would 404 it
     // and the screen renders the same thing either way, one round trip later.
     enabled: Boolean(period),

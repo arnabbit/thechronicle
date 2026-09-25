@@ -18,9 +18,8 @@ export const hasSearch = true;
 
 /** `GET /api/v2/periods/:id` — ticket 13's endpoint. Deployed and answering.
  *
- *  Deliberately on before the written summaries exist. The skeleton is the half
- *  that is always true, and the screen was built to render it unconditionally
- *  and treat prose as a bonus: until the backend has an LLM key, a closed
- *  period says a summary has not been added yet and an open one says it is
- *  still open. Both are true sentences, so there is nothing to wait for. */
+ *  The skeleton is the half that is always true, and the screen renders it
+ *  unconditionally. The period story is a bonus it never waits for: while none
+ *  is written the screen says one is being written, which is a true sentence,
+ *  so there is nothing to wait for. */
 export const hasPeriod = true;

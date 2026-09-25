@@ -1,7 +1,12 @@
 # 0001 — The period prose shape is inferred by the client, and parsed defensively
 
 Date: 2026-08-28
-Status: Accepted
+Status: Superseded by ADR 0003
+
+> **Prose no longer exists.** The period view now carries a period story, and
+> its shape and parser are recorded in ADR 0003. `src/lib/periodProse.ts` and
+> `PeriodProse` are gone. What carries over: the written half is parsed at the
+> fetch boundary, the skeleton is not, and wire order is never re-sorted.
 
 ## Context
 

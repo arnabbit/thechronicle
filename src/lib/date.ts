@@ -46,6 +46,13 @@ export function formatDateline(edition: string): string {
   return `${p.d} ${MONTHS[p.m - 1]} ${p.y}`;
 }
 
+/** "27 August" — a date inside a period, where the year is already said. */
+export function formatDayMonth(edition: string): string {
+  const p = parts(edition);
+  if (!p) return '';
+  return `${p.d} ${MONTHS[p.m - 1]}`;
+}
+
 /** "Thursday" — the archive row's kicker, where the date sits in the headline
  *  slot and the weekday is what tells a Saturday paper from a Tuesday one. */
 export function formatWeekday(edition: string): string {
@@ -54,6 +61,12 @@ export function formatWeekday(edition: string): string {
   // Date.UTC + getUTCDay is arithmetic on the calendar date itself, not a
   // timezone conversion, so the weekday cannot drift with the host clock.
   return WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
+}
+
+/** "Thursday 24 September" — the divider above each section of a period story. */
+export function sectionDateLabel(date: string): string {
+  if (!isEditionDate(date)) return '';
+  return `${formatWeekday(date)} ${formatDayMonth(date)}`;
 }
 
 /** "Thursday, 27 August 2026". */

@@ -6,6 +6,10 @@ ticket order. Not merged, not pushed.
 Read the **Unverified** and **Needs your call** sections first — everything else is here so you can
 audit a decision rather than rediscover it.
 
+> **Period prose is gone.** Every mention of prose, the lede, per-category paragraphs, the fold-in
+> line, `proseStatus` or `periodProse` below is history: the period story replaced it. See
+> **period-story** at the end, backend ADR 0005 and app ADR 0003.
+
 ---
 
 ## What shipped
@@ -98,10 +102,17 @@ approved. **This is the shortest list of things to review.**
 | Update notice | "A newer build — Version X is available. This build is installed by hand, so it does not update itself." / *Get it* · *Not now* |
 | Period, malformed id | "Not in the paper — That is not a period this paper can show. A period is a week, a month, a quarter or a year — 2026-W35, 2026-08, 2026-Q3, or 2026." |
 | Period, 404 | "This period is not available. It may be outside the paper's run, or the link may be wrong — we cannot tell which." |
-| Period, open | "This period is still open. A written summary is added once it closes." |
-| Period, no prose | "No written summary for this period." |
+| Period, open | ~~"This period is still open. A written summary is added once it closes."~~ Removed with prose |
+| Period, no prose | ~~"No written summary for this period."~~ Removed with prose |
 | Navigator | "Browse by period", "All editions →" |
 | Period sections | "Publishing rhythm", "Sections that ran", "A month at a glance" |
+| Period story, being written, no section yet | "This period’s story is being written." |
+| Period story, ready, no section | "Nothing in this period passed the test for an important story." |
+| Period story, being written, under the last section | "More is being written." |
+| Period story, status `none` | No line of its own: the empty-period notice, "No editions this {kind} — No paper was published between {range}." |
+| Period story, an entry's articles | *Read the report ›*, then "Also" *Report 2* · *Report 3* … — the wire carries ids only, so the rest are numbered |
+| Period story, a correction entry | "Correction" |
+| Period story, an update entry | "Continued from {weekday} {day} {month}" — a link when that section is in the story |
 
 The period 404 line exists because `missing`'s approved line says *"This article is not
 available"* and a period is not an article. The spec already records that as an open copy question
@@ -220,6 +231,8 @@ All seven answered. Three needed code; each got its own commit.
 | 7 | 08 and 09 gated together | **Fine** | — |
 
 ### What the grill on item 4 turned up
+
+*Superseded: prose was replaced by the period story. See **period-story** at the end.*
 
 The inference was worse than recorded. **Ticket 13's round-3 answer specifies three parts** — a short
 overall lede, one paragraph per category with enough in it, and a trailing line folding in the
@@ -360,6 +373,9 @@ Driven on web against the deployed endpoints, not against a stub:
 
 ## Known and unfixed, carried in deliberately
 
+*Items 1, 7 and the `periodProse` half of 2 no longer apply: the prose code is gone. See
+**period-story** below.*
+
 An adversarial review pass found these. They were reported before the merge and the merge went ahead
 anyway; they are written down here rather than left as a surprise.
 
@@ -387,3 +403,33 @@ anyway; they are written down here rather than left as a surprise.
 7. **`validateProse` re-sorts `byCategory` by article count**, which is derivable from the skeleton the
    client already holds — so the stored order is not carrying the information the comment and ADR
    0003 claim it carries. Either the sort is wrong or the justification is.
+
+---
+
+# period-story
+
+Tickets in `.scratch/period-story/issues/S01..S06`; S-numbers are their own sequence. The period
+view's prose is replaced by the **period story**: one growing article per period, only its important
+stories, a dated section per run, appended at the end and never rewritten. Backend and app ship
+together.
+
+The decisions are recorded where they belong rather than here:
+
+- **Backend ADR 0005** — importance judged over the period, append-only growth, the four checks, the
+  grace window, generation only when a period is opened, and the rejected alternatives. It
+  supersedes backend ADR 0003 for prose and amends ADR 0004: a late filing invalidates nothing.
+- **App ADR 0003** — the story's wire shape and its parser. It supersedes app ADR 0001.
+- **`CONTEXT.md`** in both repos — thread, important story, period story, section, entry, admitted,
+  grace window, and "the story order is the ranking", in the same words on both sides.
+
+What this retires from the sections above:
+
+- The two period copy lines about a written summary. The screen now says "This period’s story is
+  being written.", "More is being written." or "Nothing in this period passed the test for an
+  important story."
+- The item-4 grill: `PeriodProse`, `parsePeriodProse`, and the rule that closed-ness is derived from
+  `range.to` because `pending` meant two things. `storyStatus` is not ambiguous.
+- Known-and-unfixed 1 (fixed before this set: the response no longer waits on the model), the
+  `periodProse` half of 2 (the story collection has a unique `periodId` index and guarded stores),
+  and 7 (`validateProse` is deleted; the story's order is the editor's and nothing re-sorts it).
+
