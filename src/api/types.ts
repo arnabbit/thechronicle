@@ -17,9 +17,9 @@ import type { PeriodStory, StoryStatus } from '@/src/lib/periodStory';
 /** The string identifying a wire-contract generation. Ticket 09 pins the
  *  persisted cache's `buster` to this, so a v1-shaped cache cannot hydrate into
  *  v2 screens at cutover. Bump it whenever a payload shape changes. The period
- *  view's summary became its story, so a persisted period without one must not
- *  hydrate. */
-export const WIRE_CONTRACT_VERSION = 'v2-story';
+ *  story became a ranked list of stories, so a persisted period in the
+ *  section shape must not hydrate. */
+export const WIRE_CONTRACT_VERSION = 'v3-stories';
 
 export interface Category {
   slug: string;
@@ -64,8 +64,9 @@ export interface Page<T> {
  *
  * The **skeleton** — counts, categories, timeline — is a deterministic
  * aggregate and is always present, so the screen renders it unconditionally.
- * The **story** grows by one dated section per run, while the period is open
- * and for a short grace window after it closes. The screen never waits for it.
+ * The **story** is a ranked list of the period's big stories, re-ranked on
+ * every run while the period is open and for a short grace window after it
+ * closes. The screen never waits for it.
  */
 export interface PeriodCategory extends Category {
   count: number;
@@ -80,9 +81,9 @@ export interface PeriodDay {
 /** The story's shape lives in `src/lib/periodStory.ts`, with its parser. */
 export type {
   PeriodStory,
-  StoryEntry,
-  StoryEntryKind,
-  StorySection,
+  Story,
+  StoryPart,
+  StoryPartKind,
   StoryStatus,
 } from '@/src/lib/periodStory';
 
@@ -94,9 +95,9 @@ export interface PeriodView {
   articleCount: number;
   categories: PeriodCategory[];
   timeline: PeriodDay[];
-  /** Sections and entries in wire order, which is the ranking. */
+  /** Stories in rank order, parts in date order, both as the wire sent them. */
   story: PeriodStory;
   /** `none` when the period has nothing visible in it, `writing` while a run
-   *  is due or queued, `ready` when caught up — possibly with no sections. */
+   *  is due or queued, `ready` when caught up — possibly with no stories. */
   storyStatus: StoryStatus;
 }

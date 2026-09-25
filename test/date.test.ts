@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { formatDateline, formatLongDate, formatWeekday, isEditionDate, sectionDateLabel } from '../src/lib/date.ts';
+import { formatDateline, formatDayMonth, formatLongDate, formatWeekday, isEditionDate } from '../src/lib/date.ts';
 
 // `edition` is a YYYY-MM-DD calendar date in IST and is the only date on the
 // wire. Formatting it must be arithmetic on those digits — never a Date parsed
@@ -30,10 +30,10 @@ test('the weekday alone is the archive row\'s kicker', () => {
   assert.equal(formatWeekday('2024-02-29'), 'Thursday');
 });
 
-test('the section divider names the weekday and the date, no year', () => {
-  assert.equal(sectionDateLabel('2026-09-24'), 'Thursday 24 September');
-  assert.equal(sectionDateLabel('2026-09-05'), 'Saturday 5 September');
-  assert.equal(sectionDateLabel('2024-02-29'), 'Thursday 29 February');
+test('a date inside a period is the day and the month, no year and no weekday', () => {
+  assert.equal(formatDayMonth('2026-09-09'), '9 September');
+  assert.equal(formatDayMonth('2026-09-24'), '24 September');
+  assert.equal(formatDayMonth('2024-02-29'), '29 February');
 });
 
 test('a malformed or empty edition formats to nothing rather than "Invalid Date"', () => {
@@ -41,6 +41,7 @@ test('a malformed or empty edition formats to nothing rather than "Invalid Date"
     assert.equal(formatDateline(bad), '', bad);
     assert.equal(formatLongDate(bad), '', bad);
     assert.equal(formatWeekday(bad), '', bad);
+    assert.equal(formatDayMonth(bad), '', bad);
   }
 });
 

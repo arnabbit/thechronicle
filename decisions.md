@@ -106,13 +106,15 @@ approved. **This is the shortest list of things to review.**
 | Period, no prose | ~~"No written summary for this period."~~ Removed with prose |
 | Navigator | "Browse by period", "All editions →" |
 | Period sections | "Publishing rhythm", "Sections that ran", "A month at a glance" |
-| Period story, being written, no section yet | "This period’s story is being written." |
-| Period story, ready, no section | "Nothing in this period passed the test for an important story." |
-| Period story, being written, under the last section | "More is being written." |
+| Period story, being written, no story yet | "This period’s story is being written." |
+| Period story, ready, no story | "Nothing in this period passed the test for an important story." |
+| Period story, being written, under the last story | "More is being written." |
 | Period story, status `none` | No line of its own: the empty-period notice, "No editions this {kind} — No paper was published between {range}." |
-| Period story, an entry's articles | *Read the report ›*, then "Also" *Report 2* · *Report 3* … — the wire carries ids only, so the rest are numbered |
-| Period story, a correction entry | "Correction" |
-| Period story, an update entry | "Continued from {weekday} {day} {month}" — a link when that section is in the story |
+| Period story, a part's articles | *Read the report ›*, then "Also" *Report 2* · *Report 3* … — the wire carries ids only, so the rest are numbered |
+| Period story, a correction part | "Correction" |
+| Period story, an update part | "{day} {month}", e.g. "9 September", before its paragraphs |
+| Period story, an update entry | ~~"Continued from {weekday} {day} {month}"~~ Removed with sections |
+| Period story, a story's rank | "1", "2", … before its headline |
 
 The period 404 line exists because `missing`'s approved line says *"This article is not
 available"* and a period is not an article. The spec already records that as an open copy question
@@ -433,3 +435,18 @@ What this retires from the sections above:
   `periodProse` half of 2 (the story collection has a unique `periodId` index and guarded stores),
   and 7 (`validateProse` is deleted; the story's order is the editor's and nothing re-sorts it).
 
+---
+
+# period-story-v2
+
+The day-section layout was rejected: it produced about 90 entries a month. The backend now serves a
+**ranked list** of about 20 big stories per month, each a headline and its dated parts (backstory,
+update, correction). Recorded in **app ADR 0004**, which supersedes ADR 0003's section layout.
+
+- The screen is a numbered list: rank, headline, then the parts in date order. An update carries its
+  date; a correction is marked and quieter.
+- Removed: date dividers, "Continued from", the scroll-to-section logic, `StorySection`,
+  `StoryEntry`, `continuesFrom` and `sectionDateLabel`.
+- `WIRE_CONTRACT_VERSION` is `v3-stories`, so the whole persisted cache is discarded once.
+- `CONTEXT.md` in both repos: section and entry are replaced by story and part; budget and ranking
+  are added.

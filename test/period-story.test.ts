@@ -3,188 +3,165 @@ import assert from 'node:assert/strict';
 import { parsePeriodStory, parseStoryStatus } from '../src/lib/periodStory.ts';
 
 // The period story is LLM output stored on the far side of the backend. The
-// screen must show every entry that arrived whole, and lose only the ones that
+// screen must show every part that arrived whole, and lose only the ones that
 // did not.
 
-const entry = (over: Record<string, unknown> = {}) => ({
-  threadId: 't1',
-  kind: 'new',
-  headline: 'The land bill passes',
+const part = (over: Record<string, unknown> = {}) => ({
+  date: '2026-09-02',
+  kind: 'backstory',
   paragraphs: ['The assembly voted.'],
   articleIds: ['a1'],
-  continuesFrom: null,
+  ...over,
+});
+
+const story = (over: Record<string, unknown> = {}) => ({
+  threadId: 't1',
+  headline: 'The land bill passes',
+  parts: [part()],
   ...over,
 });
 
 const full = {
-  sections: [
-    {
-      date: '2026-09-15',
-      entries: [
-        entry({ threadId: 't2', headline: 'Second thread first', articleIds: ['a3', 'a1'] }),
-        entry({ threadId: 't1' }),
+  stories: [
+    story({
+      threadId: 't1',
+      headline: 'Ceasefire talks collapse, then a deal is signed',
+      parts: [
+        part({ articleIds: ['a1', 'a2'] }),
+        part({ date: '2026-09-09', kind: 'update', paragraphs: ['Talks resume.'], articleIds: ['a7'] }),
+        part({ date: '2026-09-12', kind: 'correction', paragraphs: ['A figure was wrong.'], articleIds: [] }),
       ],
-    },
-    {
-      date: '2026-09-16',
-      entries: [
-        entry({
-          threadId: 't2',
-          kind: 'update',
-          headline: 'Talks resume',
-          articleIds: ['a4'],
-          continuesFrom: '2026-09-15',
-        }),
-        entry({ threadId: 't1', kind: 'correction', headline: 'A figure was wrong' }),
-      ],
-    },
+    }),
+    story({ threadId: 't2', headline: 'The land bill passes' }),
   ],
 };
 
-test('a complete story survives intact, sections and entries in wire order', () => {
-  const story = parsePeriodStory(full);
+test('a complete story survives intact, stories and parts in wire order', () => {
+  const parsed = parsePeriodStory(full);
   assert.deepEqual(
-    story.sections.map((section) => section.date),
-    ['2026-09-15', '2026-09-16'],
+    parsed.stories.map((s) => s.threadId),
+    ['t1', 't2'],
   );
-  assert.deepEqual(
-    story.sections[0].entries.map((e) => e.threadId),
-    ['t2', 't1'],
-  );
-  assert.deepEqual(story.sections[1].entries[0], {
-    threadId: 't2',
-    kind: 'update',
-    headline: 'Talks resume',
-    paragraphs: ['The assembly voted.'],
-    articleIds: ['a4'],
-    continuesFrom: '2026-09-15',
+  assert.deepEqual(parsed.stories[0], {
+    threadId: 't1',
+    headline: 'Ceasefire talks collapse, then a deal is signed',
+    parts: [
+      { date: '2026-09-02', kind: 'backstory', paragraphs: ['The assembly voted.'], articleIds: ['a1', 'a2'] },
+      { date: '2026-09-09', kind: 'update', paragraphs: ['Talks resume.'], articleIds: ['a7'] },
+      { date: '2026-09-12', kind: 'correction', paragraphs: ['A figure was wrong.'], articleIds: [] },
+    ],
   });
-  assert.equal(story.sections[1].entries[1].kind, 'correction');
 });
 
-test('nothing is re-sorted — a later date served first stays first', () => {
-  const story = parsePeriodStory({
-    sections: [
-      { date: '2026-09-20', entries: [entry()] },
-      { date: '2026-09-14', entries: [entry()] },
+test('nothing is re-sorted: the rank order and the part order are kept as served', () => {
+  const parsed = parsePeriodStory({
+    stories: [
+      story({ threadId: 'ranked-1', headline: 'Zebra crossing' }),
+      story({ threadId: 'ranked-2', headline: 'Aardvark' }),
+      story({
+        threadId: 'ranked-3',
+        parts: [part({ date: '2026-09-20', kind: 'update' }), part({ date: '2026-09-14' })],
+      }),
     ],
   });
   assert.deepEqual(
-    story.sections.map((section) => section.date),
+    parsed.stories.map((s) => s.threadId),
+    ['ranked-1', 'ranked-2', 'ranked-3'],
+  );
+  assert.deepEqual(
+    parsed.stories[2].parts.map((p) => p.date),
     ['2026-09-20', '2026-09-14'],
   );
 });
 
 test('anything that is not a story is an empty story, never a throw', () => {
-  for (const value of [null, undefined, 'story', 42, true, [], {}, { sections: 'x' }, { sections: {} }]) {
-    assert.deepEqual(parsePeriodStory(value), { sections: [] }, String(JSON.stringify(value)));
+  for (const value of [null, undefined, 'story', 42, true, [], {}, { stories: 'x' }, { stories: {} }, { sections: [] }]) {
+    assert.deepEqual(parsePeriodStory(value), { stories: [] }, String(JSON.stringify(value)));
   }
 });
 
-test('a malformed entry drops alone; the rest of its section renders', () => {
-  const story = parsePeriodStory({
-    sections: [
-      {
-        date: '2026-09-15',
-        entries: [
-          entry({ threadId: 'kept-1' }),
+test('a malformed part drops alone; the rest of its story renders', () => {
+  const [only] = parsePeriodStory({
+    stories: [
+      story({
+        parts: [
+          part({ paragraphs: ['kept-1'] }),
           null,
           'not an object',
-          entry({ kind: 'opinion' }),
-          entry({ headline: '   ' }),
-          entry({ headline: 42 }),
-          entry({ paragraphs: 'not an array' }),
-          entry({ paragraphs: ['  ', 7] }),
-          entry({ threadId: 'kept-2' }),
+          part({ kind: 'opinion' }),
+          part({ kind: 'new' }),
+          part({ date: '2026-02-31' }),
+          part({ date: 'yesterday' }),
+          part({ date: undefined }),
+          part({ paragraphs: 'not an array' }),
+          part({ paragraphs: ['  ', 7] }),
+          part({ paragraphs: ['kept-2'], kind: 'update' }),
         ],
-      },
+      }),
     ],
-  });
+  }).stories;
   assert.deepEqual(
-    story.sections[0].entries.map((e) => e.threadId),
+    only.parts.map((p) => p.paragraphs[0]),
     ['kept-1', 'kept-2'],
   );
 });
 
-test('a section left with no entries is dropped, and so is one with no real date', () => {
-  const story = parsePeriodStory({
-    sections: [
-      { date: '2026-09-14', entries: [] },
-      { date: '2026-09-15', entries: [null, entry({ kind: 'nope' })] },
-      { date: '2026-02-31', entries: [entry()] },
-      { date: 'yesterday', entries: [entry()] },
-      { entries: [entry()] },
-      { date: '2026-09-16', entries: 'x' },
+test('a story with no headline or no surviving part is dropped; the others keep their rank', () => {
+  const parsed = parsePeriodStory({
+    stories: [
+      story({ threadId: 'kept-1' }),
+      story({ threadId: 'no-parts', parts: [] }),
+      story({ threadId: 'all-bad', parts: [null, part({ kind: 'nope' })] }),
+      story({ threadId: 'parts-not-a-list', parts: 'x' }),
+      story({ threadId: 'no-parts-field', parts: undefined }),
+      story({ threadId: 'blank-headline', headline: '   ' }),
+      story({ threadId: 'numeric-headline', headline: 42 }),
       null,
-      { date: '2026-09-17', entries: [entry()] },
+      story({ threadId: 'kept-2' }),
     ],
   });
   assert.deepEqual(
-    story.sections.map((section) => section.date),
-    ['2026-09-17'],
+    parsed.stories.map((s) => s.threadId),
+    ['kept-1', 'kept-2'],
   );
 });
 
-test('empty articleIds is still an entry — the text stands without its links', () => {
-  const story = parsePeriodStory({ sections: [{ date: '2026-09-15', entries: [entry({ articleIds: [] })] }] });
-  assert.equal(story.sections.length, 1);
-  assert.deepEqual(story.sections[0].entries[0].articleIds, []);
+test('empty articleIds is still a part: the text stands without its links', () => {
+  const parsed = parsePeriodStory({ stories: [story({ parts: [part({ articleIds: [] })] })] });
+  assert.equal(parsed.stories.length, 1);
+  assert.deepEqual(parsed.stories[0].parts[0].articleIds, []);
 });
 
 test('bad article ids are dropped one by one; a missing list is empty', () => {
   const [kept, missing] = parsePeriodStory({
-    sections: [
-      {
-        date: '2026-09-15',
-        entries: [entry({ articleIds: ['a1', '', 3, null, ' a2 '] }), entry({ articleIds: undefined })],
-      },
-    ],
-  }).sections[0].entries;
+    stories: [story({ parts: [part({ articleIds: ['a1', '', 3, null, ' a2 '] }), part({ articleIds: undefined })] })],
+  }).stories[0].parts;
   assert.deepEqual(kept.articleIds, ['a1', 'a2']);
   assert.deepEqual(missing.articleIds, []);
 });
 
-test('continuesFrom is a date or null, never junk', () => {
-  const entries = parsePeriodStory({
-    sections: [
-      {
-        date: '2026-09-16',
-        entries: [
-          entry({ continuesFrom: '2026-09-15' }),
-          entry({ continuesFrom: 'last week' }),
-          entry({ continuesFrom: 20260915 }),
-          entry({ continuesFrom: undefined }),
-        ],
-      },
-    ],
-  }).sections[0].entries;
-  assert.deepEqual(
-    entries.map((e) => e.continuesFrom),
-    ['2026-09-15', null, null, null],
-  );
-});
-
 test('blank paragraphs are dropped and text is trimmed', () => {
   const [only] = parsePeriodStory({
-    sections: [
-      {
-        date: '2026-09-15',
-        entries: [entry({ headline: '  Talks  ', paragraphs: ['  One. ', '', '   ', 'Two.\n'] })],
-      },
-    ],
-  }).sections[0].entries;
+    stories: [story({ headline: '  Talks  ', parts: [part({ paragraphs: ['  One. ', '', '   ', 'Two.\n'] })] })],
+  }).stories;
   assert.equal(only.headline, 'Talks');
-  assert.deepEqual(only.paragraphs, ['One.', 'Two.']);
+  assert.deepEqual(only.parts[0].paragraphs, ['One.', 'Two.']);
 });
 
-test('a missing threadId is empty rather than a reason to lose the entry', () => {
-  const [only] = parsePeriodStory({
-    sections: [{ date: '2026-09-15', entries: [entry({ threadId: undefined })] }],
-  }).sections[0].entries;
+test('a missing threadId is empty rather than a reason to lose the story', () => {
+  const [only] = parsePeriodStory({ stories: [story({ threadId: undefined })] }).stories;
   assert.equal(only.threadId, '');
 });
 
-test('parsing is idempotent — the persisted copy re-parses to itself', () => {
+test('only the named fields are kept', () => {
+  const [only] = parsePeriodStory({
+    stories: [story({ rank: 1, parts: [part({ continuesFrom: '2026-09-01', headline: 'old' })] })],
+  }).stories;
+  assert.deepEqual(Object.keys(only).sort(), ['headline', 'parts', 'threadId']);
+  assert.deepEqual(Object.keys(only.parts[0]).sort(), ['articleIds', 'date', 'kind', 'paragraphs']);
+});
+
+test('parsing is idempotent: the persisted copy re-parses to itself', () => {
   const once = parsePeriodStory(full);
   assert.deepEqual(parsePeriodStory(once), once);
 });

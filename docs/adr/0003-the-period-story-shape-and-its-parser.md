@@ -1,7 +1,7 @@
 # 0003 — The period story's shape, and the parser that defends it
 
 Date: 2026-09-25
-Status: Accepted. Supersedes ADR 0001.
+Status: Superseded by ADR 0004 (the section layout; the rest still holds). Supersedes ADR 0001.
 
 ## Context
 

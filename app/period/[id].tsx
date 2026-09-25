@@ -1,12 +1,12 @@
 import { onlineManager } from '@tanstack/react-query';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePeriod } from '@/src/api/queries';
-import type { PeriodDay, PeriodView, StoryEntry } from '@/src/api/types';
+import type { PeriodDay, PeriodView, StoryPart } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
-import { sectionDateLabel } from '@/src/lib/date';
+import { formatDayMonth } from '@/src/lib/date';
 import { parsePeriodId, periodLabel, rangeLabel, type PeriodKind } from '@/src/lib/period';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
@@ -14,15 +14,15 @@ import { BackLink } from '@/src/ui/BackLink';
 import { Masthead } from '@/src/ui/Masthead';
 import { Notice, ScreenState } from '@/src/ui/ScreenState';
 import { useTheme } from '@/src/theme/useTheme';
-import { fonts, type } from '@/src/theme/type';
+import { type } from '@/src/theme/type';
 
 // A week, a month, a quarter or a year at a glance — one screen for all four,
 // so they move identically and there is one screen to get right rather than
 // four to keep consistent.
 //
 // The **skeleton** is a deterministic aggregate and always present, so it
-// renders unconditionally. The **period story** follows it: one long article of
-// the period's important stories, a dated section per run, growing at the end.
+// renders unconditionally. The **period story** follows it: the period's big
+// stories as a ranked list, each a headline and its dated parts.
 // The screen never waits for it, and says which kind of nothing it has.
 //
 // Sparsity is the normal case here more than anywhere else in the app — three
@@ -45,7 +45,6 @@ export default function PeriodScreen() {
   // The server would 404 it too; this only saves the round trip.
   const period = useMemo(() => parsePeriodId(id ?? ''), [id]);
   const view = usePeriod(id ?? '');
-  const scroll = useRef<ScrollView>(null);
 
   const state = screenState({
     status: view.status,
@@ -113,7 +112,7 @@ export default function PeriodScreen() {
 
   return (
     <Frame title={routeTitle(label)}>
-      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={[type.kicker, { color: colors.secondary }]}>{KIND_WORD[period.kind]}</Text>
         <Text style={[type.display, styles.title, { color: colors.primary }]}>{label}</Text>
         <View style={styles.counts}>
@@ -129,10 +128,7 @@ export default function PeriodScreen() {
 
         <Timeline days={view.data.timeline} range={period.range} />
         <Categories view={view.data} />
-        <Story
-          view={view.data}
-          scrollTo={(y) => scroll.current?.scrollTo({ y: Math.max(0, y - 12), animated: true })}
-        />
+        <Story view={view.data} />
       </ScrollView>
     </Frame>
   );
@@ -234,23 +230,18 @@ function Categories({ view }: { view: PeriodView }) {
 }
 
 /**
- * The period story: a date divider per section, entries under it.
+ * The period story: a numbered list of the period's big stories, each its
+ * headline and then its parts.
  *
- * Sections and entries render in wire order. The order is the editor's
- * ranking, so the screen never sorts.
- *
- * Each section records where it sits so a "Continued from" line can scroll back
- * to it. Its y is relative to this view, and this view's y is relative to the
- * scroll content, so the two add up to a scroll offset.
+ * Stories and parts render in wire order. The story order is the editor's
+ * ranking and the part order is the date order, so the screen never sorts.
  */
-function Story({ view, scrollTo }: { view: PeriodView; scrollTo: (y: number) => void }) {
+function Story({ view }: { view: PeriodView }) {
   const { colors } = useTheme();
-  const top = useRef(0);
-  const tops = useRef(new Map<string, number>());
-  const { sections } = view.story;
+  const { stories } = view.story;
   const writing = view.storyStatus === 'writing';
 
-  if (sections.length === 0) {
+  if (stories.length === 0) {
     return (
       <View style={styles.section}>
         <Text style={[type.meta, { color: colors.secondary }]}>
@@ -262,40 +253,22 @@ function Story({ view, scrollTo }: { view: PeriodView; scrollTo: (y: number) => 
     );
   }
 
-  const dates = new Set(sections.map((section) => section.date));
-  const jumpTo = (date: string | null) => {
-    if (!date || !dates.has(date)) return undefined;
-    return () => {
-      const y = tops.current.get(date);
-      if (y !== undefined) scrollTo(top.current + y);
-    };
-  };
-
   return (
-    <View
-      style={styles.section}
-      onLayout={(event) => {
-        top.current = event.nativeEvent.layout.y;
-      }}
-    >
-      {sections.map((section) => (
+    <View style={styles.section}>
+      {stories.map((story, index) => (
         <View
-          key={section.date}
-          style={[styles.storySection, { borderTopColor: colors.ruleStrong }]}
-          onLayout={(event) => {
-            tops.current.set(section.date, event.nativeEvent.layout.y);
-          }}
+          key={`${story.threadId}:${index}`}
+          style={[styles.story, { borderTopColor: index === 0 ? colors.ruleStrong : colors.ruleHair }]}
         >
-          <Text style={[type.slug, { color: colors.primary }]}>
-            {sectionDateLabel(section.date)}
-          </Text>
-          {section.entries.map((entry, index) => (
-            <Entry
-              key={`${entry.threadId}:${index}`}
-              entry={entry}
-              onContinue={jumpTo(entry.continuesFrom)}
-            />
-          ))}
+          <Text style={[styles.rank, { color: colors.secondary }]}>{index + 1}</Text>
+          <View style={styles.storyBody}>
+            <Text accessibilityRole="header" style={[type.headline, { color: colors.primary }]}>
+              {story.headline}
+            </Text>
+            {story.parts.map((part, partIndex) => (
+              <Part key={`${part.date}:${partIndex}`} part={part} />
+            ))}
+          </View>
         </View>
       ))}
       {writing ? (
@@ -308,67 +281,47 @@ function Story({ view, scrollTo }: { view: PeriodView; scrollTo: (y: number) => 
 }
 
 /**
- * One entry. A `correction` is marked and quieter, never hidden. An `update`
- * names the section it continues; the line scrolls there when that section is
- * in this story, and is plain text when it is not.
+ * One part of a story. A `backstory` is its paragraphs. An `update` carries its
+ * date first, so it reads as appended. A `correction` is marked and quieter,
+ * never hidden.
  */
-function Entry({ entry, onContinue }: { entry: StoryEntry; onContinue?: () => void }) {
+function Part({ part }: { part: StoryPart }) {
   const { colors } = useTheme();
-  const correction = entry.kind === 'correction';
-  const continued = entry.kind === 'update' ? entry.continuesFrom : null;
+  const correction = part.kind === 'correction';
 
   return (
     <View
       style={[
-        styles.entry,
+        styles.part,
         correction ? [styles.correction, { borderLeftColor: colors.ruleHair }] : null,
       ]}
     >
       {correction ? (
-        <Text style={[type.kicker, styles.correctionMark, { color: colors.primary }]}>
-          Correction
-        </Text>
+        <Text style={[type.kicker, { color: colors.primary }]}>Correction</Text>
       ) : null}
-      <Text
-        accessibilityRole="header"
-        style={[correction ? styles.correctionHead : type.headline, { color: colors.primary }]}
-      >
-        {entry.headline}
-      </Text>
-      {continued ? (
-        <Text
-          accessibilityRole={onContinue ? 'link' : undefined}
-          onPress={onContinue}
-          style={[
-            type.meta,
-            styles.continued,
-            { color: colors.secondary },
-            onContinue ? styles.underline : null,
-          ]}
-        >
-          Continued from {sectionDateLabel(continued)}
-        </Text>
+      {part.kind === 'update' ? (
+        <Text style={[type.meta, { color: colors.secondary }]}>{formatDayMonth(part.date)}</Text>
       ) : null}
-      {entry.paragraphs.map((paragraph, index) => (
+      {part.paragraphs.map((paragraph, index) => (
         <Text
           key={index}
           style={[
             correction ? type.sentence : type.body,
-            styles.paragraph,
+            index === 0 && part.kind === 'backstory' ? null : styles.paragraph,
             { color: correction ? colors.secondary : colors.onSurface },
           ]}
         >
           {paragraph}
         </Text>
       ))}
-      <Articles ids={entry.articleIds} />
+      <Articles ids={part.articleIds} />
     </View>
   );
 }
 
 /**
- * The articles behind an entry: the first as the way in, the rest listed after
- * it. The wire carries ids only, so the rest are numbered, not named. An entry
+ * The articles behind a part: the first as the way in, the rest listed after
+ * it. The wire carries ids only, so the rest are numbered, not named. A part
  * whose articles were all hidden has no links and keeps its text.
  */
 function Articles({ ids }: { ids: string[] }) {
@@ -454,36 +407,36 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 16,
   },
-  storySection: {
+  // A numbered list: the rank hangs in its own column, so every headline and
+  // every part below it starts on one line.
+  story: {
+    flexDirection: 'row',
+    gap: 12,
     borderTopWidth: 1,
-    paddingTop: 14,
+    paddingTop: 16,
     marginTop: 26,
   },
-  entry: {
-    marginTop: 18,
+  rank: {
+    ...type.headline,
+    minWidth: 22,
+  },
+  storyBody: {
+    flex: 1,
+  },
+  part: {
+    marginTop: 14,
   },
   paragraph: {
     marginTop: 12,
   },
-  continued: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
   underline: {
     textDecorationLine: 'underline',
   },
-  // Quieter than an entry, and ruled off at the side so it cannot be read as
-  // one more story.
+  // Quieter than the story around it, and ruled off at the side so it cannot
+  // be read as more of the story.
   correction: {
     borderLeftWidth: 2,
     paddingLeft: 14,
-  },
-  correctionMark: {
-    marginBottom: 6,
-  },
-  correctionHead: {
-    ...type.sentence,
-    fontFamily: fonts.serifBold,
   },
   articles: {
     marginTop: 14,
@@ -495,7 +448,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  // Below the last section, in furniture weight.
+  // Below the last story, in furniture weight.
   storyMore: {
     marginTop: 26,
   },
