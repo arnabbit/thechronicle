@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePeriodStory, parseStoryStatus } from '../src/lib/periodStory.ts';
+import { findStory, parsePeriodStory, parseStoryStatus, storyDigest, storyKey } from '../src/lib/periodStory.ts';
 
 // The period story is LLM output stored on the far side of the backend. The
 // screen must show every part that arrived whole, and lose only the ones that
@@ -173,4 +173,42 @@ test('the story status is one of three words; anything else promises nothing', (
   for (const value of [undefined, null, 'pending', 'READY', 1]) {
     assert.equal(parseStoryStatus(value), 'ready', String(value));
   }
+});
+
+test('a story is addressed by its thread, or by its rank when the thread is missing', () => {
+  const { stories } = parsePeriodStory({ stories: [story({ threadId: 't1' }), story({ threadId: '' })] });
+  assert.equal(storyKey(stories[0], 0), 't1');
+  assert.equal(storyKey(stories[1], 1), 'no-2');
+  assert.equal(findStory(stories, 't1')?.index, 0);
+  assert.equal(findStory(stories, 'no-2')?.index, 1);
+  assert.equal(findStory(stories, 'gone'), null);
+});
+
+test('the digest is the opening paragraph and a count of what followed it', () => {
+  const [one] = parsePeriodStory({
+    stories: [
+      story({
+        parts: [
+          part({ date: '2026-08-02', paragraphs: ['Talks opened.', 'They stalled.'] }),
+          part({ date: '2026-08-14', kind: 'update', paragraphs: ['They resumed.'] }),
+          part({ date: '2026-08-15', kind: 'correction', paragraphs: ['40, not 400.'] }),
+          part({ date: '2026-08-29', kind: 'update', paragraphs: ['A deal.'] }),
+        ],
+      }),
+    ],
+  }).stories;
+  assert.deepEqual(storyDigest(one), {
+    summary: 'Talks opened.',
+    updates: 2,
+    corrections: 1,
+    from: '2026-08-02',
+    latest: '2026-08-29',
+  });
+});
+
+test('a story of one part has no updates and starts and ends on its day', () => {
+  const [one] = parsePeriodStory({ stories: [story()] }).stories;
+  const digest = storyDigest(one);
+  assert.equal(digest.updates, 0);
+  assert.equal(digest.from, digest.latest);
 });

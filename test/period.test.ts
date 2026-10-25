@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   bucketEditions,
+  editionsByMonth,
   istDate,
   isWithin,
   parsePeriodId,
@@ -211,4 +212,28 @@ test('the IST date rolls the month and the year at the right instant', () => {
   assert.equal(istDate(Date.UTC(2026, 11, 31, 18, 30, 0)), '2027-01-01');
   // Midnight UTC is half past five in the morning in Delhi, same day.
   assert.equal(istDate(Date.UTC(2026, 0, 1, 0, 0, 0)), '2026-01-01');
+});
+
+test('the day list keeps every edition under its month, in the order served', () => {
+  const editions = [
+    { date: '2026-08-25' },
+    { date: '2026-08-03' },
+    { date: '2026-07-30' },
+    { date: '2026-01-02' },
+    { date: '2025-12-31' },
+  ];
+  assert.deepEqual(
+    editionsByMonth(editions).map((month) => [month.id, month.label, month.editions.map((e) => e.date)]),
+    [
+      ['2026-08', 'August 2026', ['2026-08-25', '2026-08-03']],
+      ['2026-07', 'July 2026', ['2026-07-30']],
+      ['2026-01', 'January 2026', ['2026-01-02']],
+      ['2025-12', 'December 2025', ['2025-12-31']],
+    ],
+  );
+});
+
+test('the day list drops a row with no real date and is empty for no editions', () => {
+  assert.deepEqual(editionsByMonth([]), []);
+  assert.deepEqual(editionsByMonth([{ date: 'nope' }]), []);
 });

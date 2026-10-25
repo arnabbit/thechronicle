@@ -12,20 +12,23 @@ import type { PeriodKind } from '@/src/lib/period';
 // archive owns a second copy of the switcher — three places that would
 // otherwise each carry their own overlay, and drift.
 
+/** A period scale, or single days: the editions themselves. */
+export type NavigatorKind = PeriodKind | 'day';
+
 interface NavigatorState {
   open: boolean;
-  /** The scale the switcher is showing. Months by default: it is the only
-   *  scale at which this archive — 40 editions across five months — has more
-   *  than one bucket and fewer than fifty. */
-  kind: PeriodKind;
-  openNavigator: (kind?: PeriodKind) => void;
-  setKind: (kind: PeriodKind) => void;
+  /** The scale the switcher is showing. Days by default: the commonest reason
+   *  to open the navigator is to read another day's paper, and a day one tap
+   *  away is what the dateline promises. */
+  kind: NavigatorKind;
+  openNavigator: (kind?: NavigatorKind) => void;
+  setKind: (kind: NavigatorKind) => void;
   close: () => void;
 }
 
 export const useNavigator = create<NavigatorState>((set) => ({
   open: false,
-  kind: 'month',
+  kind: 'day',
   openNavigator: (kind) => set((state) => ({ open: true, kind: kind ?? state.kind })),
   setKind: (kind) => set({ kind }),
   close: () => set({ open: false }),

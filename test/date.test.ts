@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { formatDateline, formatDayMonth, formatLongDate, formatWeekday, isEditionDate } from '../src/lib/date.ts';
+import { formatDateline, formatDayMonth, formatLongDate, formatWeekday, formatWeekdayDay, isEditionDate } from '../src/lib/date.ts';
 
 // `edition` is a YYYY-MM-DD calendar date in IST and is the only date on the
 // wire. Formatting it must be arithmetic on those digits — never a Date parsed
@@ -164,4 +164,10 @@ test('the host timezone cannot change the output', (t) => {
 
   assert.deepEqual(ahead, behind);
   assert.deepEqual(ahead, ['1 January 2026', 'Thursday, 1 January 2026', 'Thursday, 31 December 2026']);
+});
+
+test('a navigator day row names the weekday and the day, not the month', () => {
+  assert.equal(formatWeekdayDay('2026-08-25'), 'Tuesday 25');
+  assert.equal(formatWeekdayDay('2026-03-05'), 'Thursday 5');
+  assert.equal(formatWeekdayDay('not-a-date'), '');
 });

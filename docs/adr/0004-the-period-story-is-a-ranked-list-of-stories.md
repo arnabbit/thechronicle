@@ -2,7 +2,7 @@
 
 Date: 2026-09-25
 Status: Accepted. Supersedes ADR 0003's section layout; the rest of ADR 0003
-still holds.
+still holds. Its screen section is superseded by ADR 0005.
 
 ## Context
 

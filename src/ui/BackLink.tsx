@@ -12,10 +12,18 @@ export function goBackOrHome() {
   else router.replace('/');
 }
 
-export function BackLink({ label = 'Back' }: { label?: string }) {
+export function BackLink({
+  label = 'Back',
+  onPress = goBackOrHome,
+}: {
+  label?: string;
+  /** A screen whose natural parent is not the front page says where back goes
+   *  when there is no history. */
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   return (
-    <Pressable accessibilityRole="button" onPress={goBackOrHome} style={styles.row}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
       <Text style={[type.kicker, { color: colors.secondary }]}>‹ {label}</Text>
     </Pressable>
   );

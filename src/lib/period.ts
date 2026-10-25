@@ -273,6 +273,35 @@ export function bucketEditions(
   return [...buckets.values()].sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
+export interface MonthGroup<T> {
+  /** The month's period id, `2026-08`. */
+  id: string;
+  /** "August 2026". */
+  label: string;
+  editions: T[];
+}
+
+/**
+ * Editions under the month they belong to: the navigator's day list.
+ *
+ * Unlike `bucketEditions` this keeps the editions themselves, in the order
+ * they came — the index is newest first, so the months and the days inside
+ * them are too. Nothing sorts.
+ */
+export function editionsByMonth<T extends { date: string }>(editions: readonly T[]): MonthGroup<T>[] {
+  const groups: MonthGroup<T>[] = [];
+
+  for (const edition of editions) {
+    const id = periodIdFor(edition.date, 'month');
+    if (!id) continue;
+    const last = groups[groups.length - 1];
+    if (last?.id === id) last.editions.push(edition);
+    else groups.push({ id, label: periodLabel(id), editions: [edition] });
+  }
+
+  return groups;
+}
+
 /** IST is UTC+5:30 with no daylight saving, ever. A fixed offset is
  *  arithmetic, not the timezone conversion the house rule forbids — what that
  *  rule bans is reading a *date string* back through the host's zone. */

@@ -87,6 +87,47 @@ export function parsePeriodStory(value: unknown): PeriodStory {
 }
 
 /**
+ * What addresses one story inside its period: the thread id, or its rank when
+ * the thread id is missing. The rank can change between runs, so a rank key is
+ * the fallback and never the first choice.
+ */
+export function storyKey(story: Story, index: number): string {
+  return story.threadId || `no-${index + 1}`;
+}
+
+/** The story a key names, and its rank (0-based), or `null` when the period's
+ *  current list no longer holds it. */
+export function findStory(
+  stories: readonly Story[],
+  key: string,
+): { story: Story; index: number } | null {
+  const index = stories.findIndex((story, i) => storyKey(story, i) === key);
+  return index === -1 ? null : { story: stories[index], index };
+}
+
+export interface StoryDigest {
+  /** The first paragraph of the first part: the story's opening, told short. */
+  summary: string;
+  updates: number;
+  corrections: number;
+  /** The first and the last part's dates. Equal when there is one part. */
+  from: string;
+  latest: string;
+}
+
+/** What the ranked list shows of a story before it is opened. */
+export function storyDigest(story: Story): StoryDigest {
+  const { parts } = story;
+  return {
+    summary: parts[0].paragraphs[0],
+    updates: parts.filter((part) => part.kind === 'update').length,
+    corrections: parts.filter((part) => part.kind === 'correction').length,
+    from: parts[0].date,
+    latest: parts[parts.length - 1].date,
+  };
+}
+
+/**
  * An unknown status reads as `ready`: the screen then shows what arrived and
  * does not promise more is coming.
  */

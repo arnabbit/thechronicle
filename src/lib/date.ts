@@ -64,6 +64,14 @@ export function formatWeekday(edition: string): string {
   return WEEKDAYS[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
 }
 
+/** "Thursday 27" — a day row in the navigator, under a month heading that
+ *  already says the month and the year. */
+export function formatWeekdayDay(edition: string): string {
+  const p = parts(edition);
+  if (!p) return '';
+  return `${formatWeekday(edition)} ${p.d}`;
+}
+
 /** "Thursday, 27 August 2026". */
 export function formatLongDate(edition: string): string {
   const p = parts(edition);

@@ -71,6 +71,9 @@ never waits for it.
 **Story** — one thread in the ranked list: a headline, its backstory, and its
 dated parts after it.
 
+**Summary** — the first paragraph of a story's first part: what the ranked list
+shows of a story before it is opened.
+
 **Part** — one dated piece of a story. **Backstory**: the story told from its
 start in the period, written on the day it is admitted. **Update**: only what
 is new since the story's last part. **Correction**: what an earlier part got

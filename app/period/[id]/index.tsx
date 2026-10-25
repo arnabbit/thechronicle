@@ -4,10 +4,11 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePeriod } from '@/src/api/queries';
-import type { PeriodDay, PeriodView, StoryPart } from '@/src/api/types';
+import type { PeriodDay, PeriodView } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { formatDayMonth } from '@/src/lib/date';
 import { parsePeriodId, periodLabel, rangeLabel, type PeriodKind } from '@/src/lib/period';
+import { storyDigest, storyKey, type Story, type StoryDigest } from '@/src/lib/periodStory';
 import { screenState } from '@/src/lib/screenState';
 import { routeTitle } from '@/src/lib/title';
 import { BackLink } from '@/src/ui/BackLink';
@@ -20,10 +21,11 @@ import { type } from '@/src/theme/type';
 // so they move identically and there is one screen to get right rather than
 // four to keep consistent.
 //
-// The **skeleton** is a deterministic aggregate and always present, so it
-// renders unconditionally. The **period story** follows it: the period's big
-// stories as a ranked list, each a headline and its dated parts.
-// The screen never waits for it, and says which kind of nothing it has.
+// The **period story** leads: the period's big stories as a ranked list, each a
+// headline and a summary, with the story itself a tap away. The screen never
+// waits for it, and says which kind of nothing it has. The **skeleton** is a
+// deterministic aggregate and always present, so it renders unconditionally,
+// after the stories — it is the period's shape, not its news.
 //
 // Sparsity is the normal case here more than anywhere else in the app — three
 // quarters of days carry no edition — so "a month at a glance" is legitimately
@@ -126,9 +128,9 @@ export default function PeriodScreen() {
         </View>
         <View style={[styles.rule, { borderTopColor: colors.ruleStrong }]} />
 
+        <Stories view={view.data} />
         <Timeline days={view.data.timeline} range={period.range} />
         <Categories view={view.data} />
-        <Story view={view.data} />
       </ScrollView>
     </Frame>
   );
@@ -231,12 +233,13 @@ function Categories({ view }: { view: PeriodView }) {
 
 /**
  * The period story: a numbered list of the period's big stories, each its
- * headline and then its parts.
+ * headline, its opening paragraph and a count of what followed. The story
+ * itself is a tap away, as an article is from the feed.
  *
- * Stories and parts render in wire order. The story order is the editor's
- * ranking and the part order is the date order, so the screen never sorts.
+ * Stories render in wire order. The order is the editor's ranking, so the
+ * screen never sorts.
  */
-function Story({ view }: { view: PeriodView }) {
+function Stories({ view }: { view: PeriodView }) {
   const { colors } = useTheme();
   const { stories } = view.story;
   const writing = view.storyStatus === 'writing';
@@ -254,22 +257,9 @@ function Story({ view }: { view: PeriodView }) {
   }
 
   return (
-    <View style={styles.section}>
+    <View>
       {stories.map((story, index) => (
-        <View
-          key={`${story.threadId}:${index}`}
-          style={[styles.story, { borderTopColor: index === 0 ? colors.ruleStrong : colors.ruleHair }]}
-        >
-          <Text style={[styles.rank, { color: colors.secondary }]}>{index + 1}</Text>
-          <View style={styles.storyBody}>
-            <Text accessibilityRole="header" style={[type.headline, { color: colors.primary }]}>
-              {story.headline}
-            </Text>
-            {story.parts.map((part, partIndex) => (
-              <Part key={`${part.date}:${partIndex}`} part={part} />
-            ))}
-          </View>
-        </View>
+        <StoryRow key={`${story.threadId}:${index}`} periodId={view.id} story={story} index={index} />
       ))}
       {writing ? (
         <Text style={[type.meta, styles.storyMore, { color: colors.secondary }]}>
@@ -280,75 +270,47 @@ function Story({ view }: { view: PeriodView }) {
   );
 }
 
-/**
- * One part of a story. A `backstory` is its paragraphs. An `update` carries its
- * date first, so it reads as appended. A `correction` is marked and quieter,
- * never hidden.
- */
-function Part({ part }: { part: StoryPart }) {
+/** One ranked story: the rank in its own column, the headline, the summary cut
+ *  at three lines, and what followed the opening. */
+function StoryRow({ periodId, story, index }: { periodId: string; story: Story; index: number }) {
   const { colors } = useTheme();
-  const correction = part.kind === 'correction';
+  const digest = storyDigest(story);
 
   return (
-    <View
-      style={[
-        styles.part,
-        correction ? [styles.correction, { borderLeftColor: colors.ruleHair }] : null,
-      ]}
+    <Pressable
+      accessibilityRole="link"
+      onPress={() =>
+        router.push({
+          pathname: '/period/[id]/[story]',
+          params: { id: periodId, story: storyKey(story, index) },
+        })
+      }
+      style={[styles.story, { borderBottomColor: colors.ruleHair }]}
     >
-      {correction ? (
-        <Text style={[type.kicker, { color: colors.primary }]}>Correction</Text>
-      ) : null}
-      {part.kind === 'update' ? (
-        <Text style={[type.meta, { color: colors.secondary }]}>{formatDayMonth(part.date)}</Text>
-      ) : null}
-      {part.paragraphs.map((paragraph, index) => (
-        <Text
-          key={index}
-          style={[
-            correction ? type.sentence : type.body,
-            index === 0 && part.kind === 'backstory' ? null : styles.paragraph,
-            { color: correction ? colors.secondary : colors.onSurface },
-          ]}
-        >
-          {paragraph}
+      <Text style={[styles.rank, { color: colors.secondary }]}>{index + 1}</Text>
+      <View style={styles.storyBody}>
+        <Text style={[type.headline, { color: colors.primary }]}>{story.headline}</Text>
+        <Text numberOfLines={3} style={[type.dek, styles.summary, { color: colors.dek }]}>
+          {digest.summary}
         </Text>
-      ))}
-      <Articles ids={part.articleIds} />
-    </View>
+        <Text style={[type.meta, styles.storyMeta, { color: colors.secondary }]}>
+          {digestLine(digest)}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
-/**
- * The articles behind a part: the first as the way in, the rest listed after
- * it. The wire carries ids only, so the rest are numbered, not named. A part
- * whose articles were all hidden has no links and keeps its text.
- */
-function Articles({ ids }: { ids: string[] }) {
-  const { colors } = useTheme();
-  if (ids.length === 0) return null;
-  const open = (id: string) => router.push({ pathname: '/article/[id]', params: { id } });
-  const [first, ...rest] = ids;
-
-  return (
-    <View style={styles.articles}>
-      <Pressable accessibilityRole="link" onPress={() => open(first)} hitSlop={8}>
-        <Text style={[type.kicker, { color: colors.primary }]}>Read the report ›</Text>
-      </Pressable>
-      {rest.length > 0 ? (
-        <View style={styles.moreArticles}>
-          <Text style={[type.meta, { color: colors.secondary }]}>Also</Text>
-          {rest.map((id, index) => (
-            <Pressable key={`${id}:${index}`} accessibilityRole="link" onPress={() => open(id)} hitSlop={8}>
-              <Text style={[type.meta, styles.underline, { color: colors.secondary }]}>
-                Report {index + 2}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
+/** "2 updates · 1 correction · latest 29 August", or "Backstory only · 21
+ *  August" for a story that has not moved since it was admitted. */
+function digestLine(digest: StoryDigest): string {
+  const said: string[] = [];
+  if (digest.updates > 0) said.push(`${digest.updates} update${digest.updates === 1 ? '' : 's'}`);
+  if (digest.corrections > 0) {
+    said.push(`${digest.corrections} correction${digest.corrections === 1 ? '' : 's'}`);
+  }
+  if (said.length === 0) return `Backstory only  ·  ${formatDayMonth(digest.latest)}`;
+  return [...said, `latest ${formatDayMonth(digest.latest)}`].join('  ·  ');
 }
 
 const styles = StyleSheet.create({
@@ -408,13 +370,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   // A numbered list: the rank hangs in its own column, so every headline and
-  // every part below it starts on one line.
+  // summary below it starts on one line.
   story: {
     flexDirection: 'row',
     gap: 12,
-    borderTopWidth: 1,
-    paddingTop: 16,
-    marginTop: 26,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
   },
   rank: {
     ...type.headline,
@@ -423,30 +384,11 @@ const styles = StyleSheet.create({
   storyBody: {
     flex: 1,
   },
-  part: {
-    marginTop: 14,
+  summary: {
+    marginTop: 8,
   },
-  paragraph: {
+  storyMeta: {
     marginTop: 12,
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  // Quieter than the story around it, and ruled off at the side so it cannot
-  // be read as more of the story.
-  correction: {
-    borderLeftWidth: 2,
-    paddingLeft: 14,
-  },
-  articles: {
-    marginTop: 14,
-    gap: 10,
-    alignItems: 'flex-start',
-  },
-  moreArticles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
   },
   // Below the last story, in furniture weight.
   storyMore: {
