@@ -105,8 +105,8 @@ downstream: the order it is stored in is the order it means.
 means there is content.
 
 **Row state** — how one row in a list is degraded while the screen around it is
-fine: **dead** (the article is gone) or **unavailableOffline** (its body is not
-on this device and the connection is). Told apart structurally, never by shade.
+fine: **dead** (the article is gone) or **unavailableOffline** (its body has not
+been read and the connection is gone). Told apart structurally, never by shade.
 
 **Paused** — a fetch the query layer is holding rather than attempting, because
 it believes there is no connection. A paused fetch has not failed and will not
@@ -117,9 +117,12 @@ while the connection is gone, so it is offline rather than loading.
 **Saved** — an article the reader kept. The store holds only an id and the time
 it was kept; everything shown about it comes from the cache or a fresh read.
 
-**Durable cache** — the query cache written to disk so the paper opens without a
-connection. Backed by `localStorage` on the web and SQLite on Android; what is
-kept is decided by one rule that never learns which store is underneath it.
+**Live read** — how the paper is read, everywhere: every screen asks the
+server on arrival, every answer is stale the moment it lands, and every request
+carries a cache-busting parameter so no store between the app and the backend
+can answer it. Nothing is written to disk, so the paper does not open without a
+connection. Only the bookmarks, the theme and the prompt counters survive a
+restart.
 
 **Hand-installed** — an Android build a reader side-loaded, which cannot update
 itself. The web build is always current and is the alternative.

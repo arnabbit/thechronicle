@@ -1,84 +1,49 @@
 import { QueryClient } from '@tanstack/react-query';
 import { isNotFound } from '@/src/api/client';
-import { createCachePersister } from '@/src/api/cacheStore';
-import { WIRE_CONTRACT_VERSION } from '@/src/api/types';
-import { isPersistable } from '@/src/lib/persist';
 
-/** 5 minutes — mirrors ticket 04's `max-age=300` on anything resolved through
- *  `latest`, which is the only shape that can change under a reader. */
-export const STALE_LATEST = 5 * 60 * 1000;
+/**
+ * Nothing in this app is read from a store.
+ *
+ * Every query is stale the moment it lands, so every mount, every reconnect
+ * and every return to the window goes back to the server. The paper used to
+ * hold past editions and articles at `Infinity` because an article id names
+ * fixed content for life — true, but it is not the whole question. An edition
+ * can gain a late article, an article can be withdrawn or hidden, and a
+ * period's story is re-ranked on every run. A reader who is told a stale
+ * answer has no way to ask for a fresh one.
+ */
+export const STALE_ALWAYS = 0;
 
-/** Past editions and articles are immutable (ticket 02), and ticket 01 made an
- *  article id's content fixed for life. Periods are not: their story grows. Revalidating any
- *  of them is pure waste. `/saved`'s bookmark revalidation is the one
- *  documented exception — it must be able to observe a 404. */
-export const STALE_IMMUTABLE = Infinity;
-
-const GC_TIME = 24 * 60 * 60 * 1000;
+/**
+ * How long an answer stays in memory after the last screen stops watching it.
+ *
+ * Not a cache the reader can read from across sessions — there is no durable
+ * cache any more, and this one dies with the process. It exists so that going
+ * back a screen paints the list you were just looking at while its refetch is
+ * in flight, instead of a skeleton. Short, because a longer window buys
+ * nothing: the copy is refetched on arrival either way.
+ */
+const GC_TIME = 5 * 60 * 1000;
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: STALE_LATEST,
-        // Not an eviction mechanism — its timers restart on every cache
-        // restore and sessions are minutes long. This is here for in-session
-        // navigation snappiness only; eviction happens at the dehydrate step.
+        staleTime: STALE_ALWAYS,
         gcTime: GC_TIME,
+        // `'always'` rather than `true`: `true` refetches a *stale* query, and
+        // although everything here is stale by the rule above, saying it
+        // outright is what stops a per-query `staleTime` quietly reintroducing
+        // a served-from-memory read.
+        refetchOnMount: 'always',
+        refetchOnReconnect: 'always',
+        refetchOnWindowFocus: 'always',
         // A 404 means missing, unknown or hidden, and none of the three
         // improves on a retry.
         retry: (failureCount, error) => !isNotFound(error) && failureCount < 2,
         // No fetch timeout anywhere: a cold Render dyno was measured at 22.9 s,
         // and any timeout short enough to feel responsive would kill it.
-        //
-        // `refetchOnReconnect` keeps its default of `true`, which is what makes
-        // "reconnecting refetches `latest`-keyed queries only" true without a
-        // rule of its own: Query refetches a reconnected query when it is
-        // *stale*, and every immutable read above already sits at `Infinity`.
-        // Past editions, past articles and the archive index are therefore
-        // never stale, never refetched, and the only queries that come back
-        // over the wire are the front page's — plus whatever was paused
-        // mid-flight when the connection went, which resumes rather than
-        // refetches.
       },
     },
   });
 }
-
-/**
- * What busts the persisted cache: the wire-contract version string, so a
- * contract change discards the stored blob rather than restoring it and
- * mis-parsing it against a shape that no longer exists.
- *
- * *Where* it lives is `cacheStore` — SQLite on Android, `localStorage` on the
- * web, chosen by the bundler rather than by a flag. Nothing else in the app
- * knows which, and the eviction rule below is the same either way.
- */
-
-/**
- * `maxAge: Infinity`, deliberately. The persister's own default is 24 hours,
- * which would throw the whole cache away between sessions and leave the tunnel
- * reader with nothing — the exact failure this cache exists to prevent. Age is
- * decided per query at the dehydrate step instead, where 90 days is the rule.
- */
-export const persistOptions = {
-  persister: createCachePersister(),
-  maxAge: Infinity,
-  buster: WIRE_CONTRACT_VERSION,
-  dehydrateOptions: {
-    // The one place eviction happens. The predicate is pure and under test;
-    // this is the adapter that reads a live query into its three inputs.
-    shouldDehydrateQuery: (query: {
-      queryKey: readonly unknown[];
-      state: { dataUpdatedAt: number; status: 'pending' | 'error' | 'success' };
-    }) =>
-      isPersistable(
-        {
-          queryKey: query.queryKey,
-          dataUpdatedAt: query.state.dataUpdatedAt,
-          status: query.state.status,
-        },
-        Date.now(),
-      ),
-  },
-};

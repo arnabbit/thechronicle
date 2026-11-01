@@ -14,22 +14,14 @@
 import { request } from '@/src/api/client';
 import { parsePeriodStory, parseStoryStatus } from '@/src/lib/periodStory';
 import type { Article, EditionRow, FeedItem, Page, PeriodView } from '@/src/api/types';
-import type { LATEST_SENTINEL } from '@/src/lib/persist';
 
 export const FEED_PAGE_SIZE = 20;
 export const EDITIONS_PAGE_SIZE = 30;
 export const SEARCH_PAGE_SIZE = 20;
 
-/**
- * The sentinel that means "today's paper" without a round trip to resolve it.
- *
- * The dehydration predicate has to recognise this string to keep the persisted
- * cache from storing two copies of one edition, and it runs under bare Node —
- * so it cannot import this module, which reaches the client and therefore
- * React Native. It declares its own copy; the annotation here is what stops
- * the two drifting apart, because the assignment stops compiling if they do.
- */
-export const LATEST: typeof LATEST_SENTINEL = 'latest';
+/** The sentinel that means "today's paper" without a round trip to resolve
+ *  it. A valid `:date` in the contract above. */
+export const LATEST = 'latest';
 
 interface Envelope<T> {
   has_next: boolean;
@@ -115,9 +107,9 @@ type PeriodWire = Omit<PeriodView, 'story' | 'storyStatus'> & {
  * refuses them client-side first, so a mistyped id costs no request at all.
  *
  * The story is parsed here rather than at the screen, so the normalised shape
- * is what enters the cache and what gets persisted — one parse per response,
- * not one per render. Only the named fields are kept, so a field the wire has
- * dropped cannot ride along into the cache. The skeleton is not parsed: it
+ * is what enters the cache — one parse per response, not one per render. Only
+ * the named fields are kept, so a field the wire has dropped cannot ride along
+ * into the cache. The skeleton is not parsed: it
  * comes off a deterministic aggregate query, and if *it* is wrong the screen has
  * nothing to fall back to anyway.
  */

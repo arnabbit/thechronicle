@@ -6,7 +6,6 @@ import * as Updates from 'expo-updates';
 import { API_BASE } from '@/src/api/client';
 import { LATEST, fetchEdition, fetchEditionArticles } from '@/src/api/endpoints';
 import { queryKeys } from '@/src/api/queries';
-import { STALE_IMMUTABLE } from '@/src/api/queryClient';
 import { canPush } from '@/src/capabilities';
 
 // Being told a new edition exists. A mount side effect, so it lives in the
@@ -50,13 +49,11 @@ async function prefetchEdition(client: QueryClient, date: string): Promise<void>
     client.prefetchQuery({
       queryKey: queryKeys.edition(date),
       queryFn: () => fetchEdition(date),
-      staleTime: STALE_IMMUTABLE,
     }),
     client.prefetchInfiniteQuery({
       queryKey: queryKeys.editionArticles(date, 'home'),
       queryFn: ({ pageParam }) => fetchEditionArticles(date, 'home', pageParam as string | null),
       initialPageParam: null as string | null,
-      staleTime: STALE_IMMUTABLE,
     }),
   ]);
 }

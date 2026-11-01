@@ -14,13 +14,6 @@
 
 import type { PeriodStory, StoryStatus } from '@/src/lib/periodStory';
 
-/** The string identifying a wire-contract generation. Ticket 09 pins the
- *  persisted cache's `buster` to this, so a v1-shaped cache cannot hydrate into
- *  v2 screens at cutover. Bump it whenever a payload shape changes. The period
- *  story became a ranked list of stories, so a persisted period in the
- *  section shape must not hydrate. */
-export const WIRE_CONTRACT_VERSION = 'v3-stories';
-
 export interface Category {
   slug: string;
   name: string;

@@ -1,8 +1,8 @@
 // The period story: a ranked list of the period's big stories, each a headline
 // and its dated parts.
 //
-// Parsed at the fetch boundary, so the shape that enters the cache and the
-// durable copy on disk is already the one this build renders. The text is LLM
+// Parsed at the fetch boundary, so the shape that enters the cache is already
+// the one this build renders. The text is LLM
 // output stored on the backend, so the parse is defensive: a malformed part
 // drops alone, and a story left with no parts, or with no headline, drops too.
 //

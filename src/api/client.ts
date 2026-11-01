@@ -15,6 +15,29 @@ export const API_BASE =
 export { ApiError, NotFoundError, isNotFound } from '@/src/api/errors';
 
 /**
+ * The cache-busting parameter, added to every read.
+ *
+ * The paper is read live: no response is ever served from a store between the
+ * app and the backend. Headers alone do not guarantee that. `cache: 'no-store'`
+ * is honoured by the browser's fetch and ignored by React Native's, which is a
+ * polyfill over `XMLHttpRequest`, and `Cache-Control` is a request to whatever
+ * sits in the middle rather than a rule it must obey. A parameter that differs
+ * on every call cannot be ignored by any of them: the URL itself is new, so no
+ * stored response can match it.
+ *
+ * The backend ignores unknown query parameters, so this is invisible to the
+ * contract in `endpoints.ts`.
+ */
+const CACHE_BUST_PARAM = '_';
+
+/** No-store on both sides of the call: the browser's own HTTP cache, and any
+ *  proxy that reads request headers. */
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-cache, no-store, max-age=0',
+  Pragma: 'no-cache',
+} as const;
+
+/**
  * The one place a request leaves the app — except ticket 16's GitHub release
  * check, which deliberately does not go through here.
  *
@@ -31,8 +54,12 @@ export async function request<T>(
       query.set(key, String(value));
     }
   }
-  const suffix = query.toString() ? `?${query}` : '';
-  const response = await fetch(`${API_BASE}${path}${suffix}`);
+  // Last, so it never displaces a real parameter and always leaves a query.
+  query.set(CACHE_BUST_PARAM, String(Date.now()));
+  const response = await fetch(`${API_BASE}${path}?${query}`, {
+    cache: 'no-store',
+    headers: NO_STORE_HEADERS,
+  });
 
   if (response.status === 404) throw new NotFoundError();
   if (!response.ok) {

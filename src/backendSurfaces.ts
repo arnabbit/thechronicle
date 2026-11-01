@@ -1,9 +1,8 @@
 // Which *backend surfaces* exist yet — a separate seam from `src/capabilities.ts`,
-// which answers what the platform can do (push, offline cache, native share).
-// That question and this one drift apart: an Android build can cache offline
-// today and still have nothing to search, because the search endpoint is a
-// different ticket. Mixing them into one module would tie a deploy fact to a
-// device fact.
+// which answers what the platform can do (push, native share). That question
+// and this one drift apart: an Android build can push today and still have
+// nothing to search, because the search endpoint is a different ticket. Mixing
+// them into one module would tie a deploy fact to a device fact.
 //
 // Both surfaces are built complete against their specced contracts and are
 // reachable by URL. What these flags gate is only the *entry affordance* — the

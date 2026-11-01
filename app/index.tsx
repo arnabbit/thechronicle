@@ -4,12 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LATEST } from '@/src/api/endpoints';
-import {
-  useEdition,
-  useEditionArticles,
-  usePrefetchBodies,
-  usePrefetchEditions,
-} from '@/src/api/queries';
+import { useEdition, useEditionArticles, usePrefetchEditions } from '@/src/api/queries';
 import type { FeedItem } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
 import { useNavigator } from '@/src/store/navigator';
@@ -52,10 +47,7 @@ export default function TodaysPaper() {
     [feed.data],
   );
 
-  // After first paint: the bodies behind the rows the reader can see, so the
-  // durable cache holds articles and not just headlines, and the archive index
-  // the dateline leads to.
-  usePrefetchBodies(articles);
+  // After first paint: the archive index the dateline leads to.
   usePrefetchEditions();
 
   const selectCategory = useCallback((slug: string) => {

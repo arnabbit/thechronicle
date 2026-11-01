@@ -46,9 +46,10 @@ export default function Saved() {
       ordered.map((mark, index) => {
         const read = reads[index];
         const article = read?.data;
-        // No article record means no headline of its own — but the feed page
-        // this was saved from is usually still in the durable cache, and that
-        // is what keeps an offline row legible instead of blank.
+        // No article record means no headline of its own — but if the feed
+        // page this was saved from was read in this session it is still in
+        // memory, and that is what keeps a degraded row legible instead of
+        // blank.
         const fallback = article ? undefined : findCachedFeedItem(client, mark.id);
         return {
           id: mark.id,

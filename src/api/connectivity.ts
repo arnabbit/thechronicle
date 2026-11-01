@@ -3,13 +3,13 @@ import { onlineManager } from '@tanstack/react-query';
 
 // Who tells the app it is offline.
 //
-// **Ungated by the offline-cache capability.** Online/offline detection is not
-// a durable-cache feature: the web build needs it too, with no cache behind it,
-// because "you are offline" and "the server is down" are different things to
-// tell a reader on any platform. Query ships a browser binding of its own but
-// none for React Native, so until this ran, `onlineManager.isOnline()` was
-// permanently `true` on Android and the `offline` screen state was unreachable
-// there by construction.
+// **Not a caching feature.** Nothing is kept on the device, and online/offline
+// detection matters more for that, not less: "you are offline" and "the server
+// is down" are different things to tell a reader, and with no cached copy
+// behind either of them the notice is the whole answer. Query ships a browser
+// binding of its own but none for React Native, so until this ran,
+// `onlineManager.isOnline()` was permanently `true` on Android and the
+// `offline` screen state was unreachable there by construction.
 //
 // Screens never call this. They read `onlineManager.isOnline()` at the call
 // site and hand the answer to the pure selector, which is what keeps the

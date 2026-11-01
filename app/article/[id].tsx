@@ -1,11 +1,11 @@
-import { onlineManager, useQueryClient } from '@tanstack/react-query';
+import { onlineManager } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { prefetchArticleBody, useArticle } from '@/src/api/queries';
+import { useArticle } from '@/src/api/queries';
 import { canShareNatively } from '@/src/capabilities';
 import type { Article } from '@/src/api/types';
 import { categoryLabel } from '@/src/lib/category';
@@ -42,8 +42,8 @@ export default function ArticleDetail() {
     error: article.error,
     online: onlineManager.isOnline(),
     // Paused, not failed: Query holds an offline fetch open instead of
-    // erroring it. An article already in the durable cache reads as `success`
-    // and never gets here, which is what makes the tunnel work.
+    // erroring it, so an offline reader gets the no-connection notice rather
+    // than the skeleton for ever.
     paused: article.fetchStatus === 'paused',
     // A record read has no empty state: success means the article is here.
     count: article.data ? 1 : 0,
@@ -164,7 +164,6 @@ function Body({
  */
 function Controls({ id, headline }: { id: string; headline: string }) {
   const { colors } = useTheme();
-  const client = useQueryClient();
   const bookmarks = useBookmarks((state) => state.bookmarks);
   const save = useBookmarks((state) => state.save);
   const remove = useBookmarks((state) => state.remove);
@@ -178,11 +177,7 @@ function Controls({ id, headline }: { id: string; headline: string }) {
       return;
     }
     save(id, Date.now());
-    // Fire and forget. The offline cache prefetches only the current
-    // edition's bodies, so a bookmark made from a past edition or a search
-    // result would otherwise be a kept thing with nothing kept.
-    prefetchArticleBody(client, id);
-  }, [saved, remove, save, id, client]);
+  }, [saved, remove, save, id]);
 
   const share = useCallback(async () => {
     const message = shareMessage(headline, id);
